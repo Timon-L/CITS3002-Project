@@ -6,6 +6,10 @@
 char *array[r_no];
 int row = 0;
 
+/*
+Read file by line by line
+allocate memory for line and store into array
+*/
 int readfile(char *filename){
     size_t bufsize = 0;
     ssize_t read;

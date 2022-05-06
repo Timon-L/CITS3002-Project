@@ -1,3 +1,8 @@
+"""
+Read file line by line
+Ignore line starting with # and empty lines
+
+"""
 def readfile(file):
     rake_list = []
     line_list = []
@@ -15,13 +20,20 @@ def readfile(file):
     rake_list.append(line_list)
     f.close()
     return rake_list
-
+"""
+Split line by spaces.
+"""
 def line_split(line):
     splited_list = []
     for i in line:
         splited_list.append(i.split(" "))
     return splited_list
 
+"""
+Takes splited line and build dictionary
+Key value = first string
+Ignore "="
+"""
 def list2dic(list):
     dic = {}
     value_list = []
@@ -38,7 +50,6 @@ def list2dic(list):
         dic = {}
         value_list = []
     return dic_list
-
 
 def main(file):
     ll = readfile(file)
