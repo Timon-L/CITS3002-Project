@@ -3,6 +3,10 @@ Read file line by line
 Ignore line starting with # and empty lines
 
 """
+from ctypes import sizeof
+import os
+
+
 def readfile(file):
     rake_list = []
     line_list = []
@@ -51,8 +55,31 @@ def list2dic(list):
         value_list = []
     return dic_list
 
+"""
+Execute commands in each actionset
+"""
+def execute(actionsets):
+    for actionset in actionsets:
+        for action in actionset:
+            action = action.split('\t')
+            # If it only had one tab space
+            if len(action) == 2:
+                # If action is for remote host, send to remote host
+                if action[1][:6] == "remote":
+                    ## Code to send to remote host
+                    print("Sending to remote host...")
+                # Else, execute on localhost
+                else:
+                    os.system(action[1])
+            # Else it as 2 tab spaces
+            else:
+                ## Code to send required files
+                print("Sending required files...")
+                
+
 def main(file):
     ll = readfile(file)
     print(list2dic(line_split(ll[0])))
+    execute(ll[1:])
 
 main("Raketest")

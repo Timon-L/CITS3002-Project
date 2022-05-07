@@ -33,6 +33,19 @@ int readfile(char *filename){
     return EXIT_SUCCESS;
 }
 
+/*
+Execute actionsets
+*/
+int execute(char **actionsets){
+    for(int i = 0; i < sizeof(actionsets); i++){
+        for(int j = 0; j < sizeof(actionsets[i]); j++){
+            //do same stuff as python rake client-need to sort out array 1st
+        }
+    }
+    return EXIT_SUCCESS;
+}
+
+
 int main(int argc, char **argv){ 
     if(argc > 1){
         readfile(argv[1]);
@@ -40,5 +53,6 @@ int main(int argc, char **argv){
     for (int i = 0; i < row; i++){
         printf("%s\n", array[i]);
     }
+    execute(array);
     return EXIT_SUCCESS;
 }

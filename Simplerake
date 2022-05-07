@@ -1,0 +1,7 @@
+# A simple Rakefile
+
+PORT = 6238
+HOSTS = localhost
+
+actionset1:
+	cal
