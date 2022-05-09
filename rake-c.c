@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define r_no 100
-char *array[r_no];
+char *lines[r_no];
 int row = 0;
 
 /*
@@ -22,9 +23,9 @@ int readfile(char *filename){
     }
 
     while((read = getline(&line, &bufsize, fp)) != -1){
-        if(line[0] != '#'){
-            array[row] = malloc(strlen(line) + 1);
-            strcpy(array[row], line);
+        if(line[0] != '#' && line[0] != '\n'){
+            lines[row] = malloc(strlen(line) + 1);
+            strcpy(lines[row], line);
             ++row;
         }
     }
@@ -33,12 +34,25 @@ int readfile(char *filename){
     return EXIT_SUCCESS;
 }
 
+char **split(const char *str){
+    char **words = NULL;
+    char *copy = strdup(str);
+    char *word = strtok(copy," ");
+    int w_count = 0;
+    while(word != NULL){
+        words = realloc(words, (w_count+1)*sizeof(words[0]));
+        words[w_count] = word;
+        word = strtok(NULL, " ");
+        printf("%s\n", words[w_count]);
+    }
+    free(copy);
+    return words;
+}
+
 int main(int argc, char **argv){ 
     if(argc > 1){
         readfile(argv[1]);
-    }
-    for (int i = 0; i < row; i++){
-        printf("%s\n", array[i]);
+        split(lines[0]);
     }
     return EXIT_SUCCESS;
 }
