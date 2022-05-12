@@ -5,7 +5,7 @@ Ignore line starting with # and empty lines
 """
 from ctypes import sizeof
 import os
-
+import subprocess
 
 def readfile(file):
     rake_list = []
@@ -59,7 +59,10 @@ def list2dic(list):
 Execute commands in each actionset
 """
 def execute(actionsets):
+    setnum = 1
     for actionset in actionsets:
+        events.write("ACTIONSET " + str(setnum) +  " ACTIONS:" + '\n')
+        setnum += 1
         for action in actionset:
             action = action.split('\t')
             # If it only had one tab space
@@ -68,18 +71,43 @@ def execute(actionsets):
                 if action[1][:6] == "remote":
                     ## Code to send to remote host
                     print("Sending to remote host...")
+                
                 # Else, execute on localhost
                 else:
-                    os.system(action[1])
+                    events.write("ACTION: " + '\n' + action[1] + '\n')
+                    try:
+                        os.system(action[1])
+                    except Exception as e:
+                        events.write("ERROR: " + '\n' + str(e) + '\n\n')
+                    else:
+                        out = subprocess.check_output(action[1].split(" "))
+                        events.write("OUTPUT: " + '\n' + out.decode('utf-8') + '\n')
+
             # Else it as 2 tab spaces
             else:
                 ## Code to send required files
                 print("Sending required files...")
-                
+
+"""
+Create file to capture events (outputs and errors)
+"""           
+def create_event_file(path):
+    filename, extension = os.path.splitext(path)
+    counter = 1
+
+    while os.path.exists(path):
+        path = filename + str(counter) + extension
+        counter += 1
+    return open(path, 'w')
 
 def main(file):
     ll = readfile(file)
     print(list2dic(line_split(ll[0])))
     execute(ll[1:])
 
+# Create file to record output and errors of actions
+events = create_event_file("event.txt")
+
 main("Raketest")
+
+events.close()
