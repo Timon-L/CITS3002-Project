@@ -1,11 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <errno.h>
-
-#define r_no 100
+#include "rake-c.h"
 
 struct local{
     char *file;
@@ -175,7 +168,6 @@ int main(int argc, char **argv){
         //}
         populate(lines[3]);
         
-        execute("local");
     }
     //execute(array);
     return EXIT_SUCCESS;
