@@ -5,7 +5,7 @@ Ignore line starting with # and empty lines
 """
 from ctypes import sizeof
 import os
-import subprocess
+import socket
 
 def readfile(file):
     rake_list = []
@@ -80,8 +80,8 @@ def execute(actionsets):
                     except Exception as e:
                         events.write("ERROR: " + '\n' + str(e) + '\n\n')
                     else:
-                        out = subprocess.check_output(action[1].split(" "))
-                        events.write("OUTPUT: " + '\n' + out.decode('utf-8') + '\n')
+                        out = os.popen(action[1]).read()
+                        events.write("OUTPUT: " + '\n' + out + '\n')
 
             # Else it as 2 tab spaces
             else:
@@ -99,6 +99,23 @@ def create_event_file(path):
         path = filename + str(counter) + extension
         counter += 1
     return open(path, 'w')
+
+"""
+Send data to server - !NEEDS TESTING!. Reference: https://stackoverflow.com/questions/1908878/netcat-implementation-in-python
+"""   
+def netcat(hostname, port, content):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((hostname, port))
+    s.sendall(content)
+    s.shutdown(socket.SHUT_WR)
+    while 1:
+        data = s.recv(1024)
+        if len(data) == 0:
+            break
+        print("Received:", repr(data))
+    print("Connection closed.")
+    s.close()
+
 
 def main(file):
     ll = readfile(file)
