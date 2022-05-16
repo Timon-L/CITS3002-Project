@@ -8,15 +8,43 @@
 #include <unistd.h>
 #include <netdb.h>
 
-//#define MY_SOCK_PATH "localhost"
 #define MYPORT "1299"
+#define TXTLEN 1024
 #define LISTEN_BACKLOG 20
+#define FILENAME "output.txt"
+#define COMMAND "/bin/nc"
+#define HOSTNAME "localhost"
+
+int writeToFile(char *filename, char *msg){
+    FILE *fp = fopen(filename,"w");
+
+    if(!fp){
+        fprintf(stderr, "Fail to open file '%s'\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+
+    if(fputs(msg, fp) == EOF){
+        fprintf(stderr,"Error:%s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+int sendFile(){
+    char *env[] = {HOSTNAME, MYPORT, FILENAME, NULL};
+    if(execle("/bin/echo", "/bin/echo", "CITS3002", "| nc \"$HOSTNAME $MYPORT > $FILENAME\"", NULL, env) == -1){
+        fprintf(stderr,"Error:%s\n", strerror(errno));
+    }
+    return EXIT_SUCCESS;
+}
 
 int main(int argc, char *argv[]){
     int sockfd, clientfd;
     struct addrinfo *servinfo, my_addr;
     struct sockaddr_storage peer_addr;
     socklen_t peer_address_size;
+    char msg[TXTLEN];
+    int bytes;
 
     memset(&my_addr, 0, sizeof(my_addr));
     my_addr.ai_family = AF_UNSPEC;
@@ -49,8 +77,13 @@ int main(int argc, char *argv[]){
     }
 
     printf("Client connected\n");
-    //if(remove(MY_SOCK_PATH) != 0){
-        //fprintf(stderr, "Error:%s\n", strerror(errno));
-    //}
+    if((bytes = recvfrom(clientfd, msg, TXTLEN-1, 0, (struct sockaddr *)&peer_addr, &peer_address_size)) == -1){
+        fprintf(stderr, "Error:%s\n", strerror(errno));
+    }
+    msg[bytes] = '\0';
+    printf("%s\n", msg);
+    writeToFile(FILENAME, msg);
+    sendFile();
+    close(sockfd);
     return EXIT_SUCCESS;
 }
