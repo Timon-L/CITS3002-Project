@@ -1,12 +1,18 @@
+from ctypes import sizeof
+from mmap import PROT_READ, PROT_WRITE
+#import os
+import socket
+import sys
+
+
+PORT = []
+HOSTS = []
+
+
 """
 Read file line by line
 Ignore line starting with # and empty lines
-
 """
-from ctypes import sizeof
-import os
-import socket
-
 def readfile(file):
     rake_list = []
     line_list = []
@@ -24,6 +30,8 @@ def readfile(file):
     rake_list.append(line_list)
     f.close()
     return rake_list
+
+
 """
 Split line by spaces.
 """
@@ -32,6 +40,7 @@ def line_split(line):
     for i in line:
         splited_list.append(i.split(" "))
     return splited_list
+
 
 """
 Takes splited line and build dictionary
@@ -55,42 +64,80 @@ def list2dic(list):
         value_list = []
     return dic_list
 
+
+"""
+Go through actionsets and group actions that require files 
+"""
+def make_sets(actionsets):
+    numsets = len(actionsets)
+    a_sets = [ [] for _ in range(numsets) ]
+    for i in range(numsets):
+        numactions = len(actionsets[i])
+        numsend = 0
+        for j in range(numactions):
+            actionsets[i][j] = actionsets[i][j].split('\t')
+            # If it only has one tab space
+            if len(actionsets[i][j]) == 2:
+                a_sets[i].append([actionsets[i][j][1]])
+            # Else it has 2 tabs, so append it to previous action (creating an array)
+            else:
+                a_sets[i][j-1 - numsend].append(actionsets[i][j][2])
+                numsend += 1
+    return a_sets
+
+
 """
 Execute commands in each actionset
 """
 def execute(actionsets):
     setnum = 1
     for actionset in actionsets:
-        events.write("ACTIONSET " + str(setnum) +  " ACTIONS:" + '\n')
+        vprint("STARTING ACTIONSET " + str(setnum) +  " ACTIONS:" + '\n')
         setnum += 1
-        for action in actionset:
-            action = action.split('\t')
-            # If it only had one tab space
-            if len(action) == 2:
-                # If action is for remote host, send to remote host
-                if action[1][:6] == "remote":
-                    ## Code to send to remote host
-                    print("Sending to remote host...")
-                
-                # Else, execute on localhost
-                else:
-                    events.write("ACTION: " + '\n' + action[1] + '\n')
-                    try:
-                        os.system(action[1])
-                    except Exception as e:
-                        events.write("ERROR: " + '\n' + str(e) + '\n\n')
-                    else:
-                        out = os.popen(action[1]).read()
-                        events.write("OUTPUT: " + '\n' + out + '\n')
+        for actions in actionset:
+            out=""
+            # If actions are for remote host, send quote to hosts
+            if actions[0][:6] == "remote":
+                try:
+                    vprint("REQUESTING QUOTES.\n")
+                    HOST = "localhost" #cheapest_quote(HOSTS) - PUT THIS IN AFTER SERVER CAN SEND QUOTES
 
-            # Else it as 2 tab spaces
+                    # If there are required files, send them to server
+                    if len(actions) == 2:
+                        for file in actions[1][9:].split(" "):
+                            vprint("SENDING FILES: " + '\n' + file + '\n')
+                            send_file(HOST, PORT, file)
+
+                    vprint("REMOTE ACTION: " + '\n' + actions[0][7:] + '\n')
+                    out = send_command(HOST, PORT, actions[0][7:].encode())
+                except Exception as e:
+                    vprint("ERROR: " + '\n' + str(e) + '\n\n')
+                    sys.exit(1)
+                else:
+                    vprint("OUTPUT: " + '\n' + out + '\n')
+            
+            # Else, execute on localhost via server
             else:
-                ## Code to send required files
-                print("Sending required files...")
+                try:
+                    HOST = "localhost"
+                    # If there are required files, send them to server
+                    if len(actions) == 2:
+                        for file in actions[1][9:].split(" "):
+                            vprint("SENDING FILES: " + '\n' + file + '\n')
+                            send_file(HOST, PORT, file)
+                    
+                    vprint("ACTION: " + '\n' + actions[0] + '\n')
+                    out = send_command(HOST, PORT, actions[0].encode())
+                except Exception as e:
+                    vprint("ERROR: " + '\n' + str(e) + '\n\n')
+                    sys.exit(1)
+                else:
+                    vprint("OUTPUT: " + '\n' + out + '\n')
+
 
 """
-Create file to capture events (outputs and errors)
-"""           
+Create file to capture events (outputs and errors) -- DONT NEED RIGHT NOW-PRINTING EVENTS INSTEAD
+      
 def create_event_file(path):
     filename, extension = os.path.splitext(path)
     counter = 1
@@ -99,32 +146,94 @@ def create_event_file(path):
         path = filename + str(counter) + extension
         counter += 1
     return open(path, 'w')
+# Create file to record output and errors of actions
+#events = create_event_file("event.txt")
+"""
+
 
 """
-Send data to server - !NEEDS TESTING!. Reference: https://stackoverflow.com/questions/1908878/netcat-implementation-in-python
+Send data to server. Reference: https://stackoverflow.com/questions/1908878/netcat-implementation-in-python
 """   
-def netcat(hostname, port, content):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((hostname, port))
-    s.sendall(content)
-    s.shutdown(socket.SHUT_WR)
+def send_command(hostname, port, command):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    vprint("OPENING CONNECTION.")
+    sock.connect((hostname, port))
+    sock.sendall(command)
+    sock.shutdown(socket.SHUT_WR)
     while 1:
-        data = s.recv(1024)
+        data = sock.recv(1024)
+
         if len(data) == 0:
             break
-        print("Received:", repr(data))
-    print("Connection closed.")
-    s.close()
+        vprint("RECEIVED:\n", repr(data))
+    vprint("CLOSING CONNECTION.\n")
+    sock.close()
+    return data.decode('utf-8')
 
 
-def main(file):
+"""
+Send file to server.
+"""   
+def send_file(hostname, port, file):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    vprint("OPENING CONNECTION.")
+    sock.connect((hostname, port))
+
+    # Open and read file
+    f = open(file, "r")
+    d = f.read()
+    
+    sock.send(file.encode())
+    sock.send(d.encode())
+
+    sock.shutdown(socket.SHUT_WR)
+    while 1:
+        data = sock.recv(1024)
+        
+        if len(data) == 0:
+            break
+        vprint("RECEIVED:\n", repr(data))
+    f.close()
+    vprint("CLOSING CONNECTION.\n")
+    sock.close()
+
+
+"""
+Get quote from all servers and return hostname of cheapest server
+"""
+def cheapest_quote(hostnames):
+    quotes = []
+    for host in hostnames:
+        quote = send_command(host, PORT, "REQUEST QUOTE".encode())
+        quotes.append(quote)
+    return hostnames[quote.index(max(quote))]
+
+
+"""
+Print function to work when verbose is enabled
+"""
+def vprint(arg):
+    lambda *a: None
+
+
+"""
+Main function to start client
+"""
+def main(argv):
+    file = argv[0]
+    if "-v" in argv:
+        global vprint
+        # Make function print
+        vprint = print
+        file = argv[1]
     ll = readfile(file)
-    print(list2dic(line_split(ll[0])))
-    execute(ll[1:])
+    ph = list2dic(line_split(ll[0]))
+    global PORT
+    PORT = int(ph[0]["PORT"][0])
+    global HOSTS
+    HOSTS = ph[1]["HOSTS"]
+    actionsets = make_sets(ll[1:])
+    execute(actionsets)
 
-# Create file to record output and errors of actions
-events = create_event_file("event.txt")
-
-main("Raketest")
-
-events.close()
+# Command line to use should be: python3 rake-p.py <-v> <file>
+main(sys.argv[1:])

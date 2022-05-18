@@ -1,7 +1,10 @@
 # A simple Rakefile
 
-PORT = 6238
+PORT = 1299
 HOSTS = localhost
 
 actionset1:
 	cal
+
+actionset2:
+	remote cal
