@@ -100,7 +100,7 @@ def execute(actionsets):
             if actions[0][:6] == "remote":
                 try:
                     vprint("REQUESTING QUOTES.\n")
-                    HOST = "localhost" #cheapest_quote(HOSTS) - PUT THIS IN AFTER SERVER CAN SEND QUOTES
+                    HOST = cheapest_quote(HOSTS)
 
                     # If there are required files, send them to server
                     if len(actions) == 2:
@@ -160,15 +160,17 @@ def send_command(hostname, port, command):
     sock.connect((hostname, port))
     sock.sendall(command)
     sock.shutdown(socket.SHUT_WR)
+    output = ""
     while 1:
         data = sock.recv(1024)
 
         if len(data) == 0:
             break
-        vprint("RECEIVED:\n", repr(data))
+        output += data.decode("utf-8")
+        vprint("RECEIVED:\n", data.decode("utf-8"))
     vprint("CLOSING CONNECTION.\n")
     sock.close()
-    return data.decode('utf-8')
+    return output
 
 
 """
