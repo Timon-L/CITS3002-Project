@@ -6,7 +6,11 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 #include <netdb.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #define MYPORT "1299"
 #define TXTLEN 128
@@ -43,12 +47,32 @@ int make_tmp(){
 }
 
 void hostname(){
+    /*struct hostent *host_detail;
     char hostname[TXTLEN];
+    char *IP;
     hostname[TXTLEN-1] = '\0';
     if(gethostname(hostname, TXTLEN) == -1){
         fprintf(stderr, "gethostname:%s\n", strerror(errno));
     }
+    if((host_detail = gethostbyname(hostname)) == NULL){
+        fprintf(stderr, "gethostbyname:%s\n", strerror(errno));
+    }
+    if((IP = inet_ntoa(*((struct in_addr*)host_detail->h_addr_list[0]))) == NULL){
+        perror("inet_ntoa\n");
+    }
     printf("My name is:%s\n", hostname);
+    */
+    int sockn;
+    struct ifreq ifr;
+    char array[] = "eth0";
+
+    sockn = socket(AF_INET, SOCK_DGRAM, 0);
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name, array, IFNAMSIZ-1);
+    ioctl(sockn, SIOCGIFADDR, &ifr);
+    close(sockn);
+
+    printf("My IP is:%s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 }
 
 int main(int argc, char *argv[]){
@@ -62,7 +86,7 @@ int main(int argc, char *argv[]){
     int reuse_addr = 1;
 
     memset(&my_addr, 0, sizeof(my_addr));
-    my_addr.ai_family = AF_UNSPEC;
+    my_addr.ai_family = AF_INET;
     my_addr.ai_socktype = SOCK_STREAM;
     my_addr.ai_flags = AI_PASSIVE;
 

@@ -160,7 +160,7 @@ int communicate(char *hostname){
     char dst[INET6_ADDRSTRLEN];
 
     memset(&my_addr, 0, sizeof(my_addr));
-    my_addr.ai_family = AF_UNSPEC;
+    my_addr.ai_family = AF_INET;
     my_addr.ai_socktype = SOCK_STREAM;
 
     if ((getaddrinfo(hostname, PORT, &my_addr, &servinfo)) == -1){
@@ -188,7 +188,7 @@ int communicate(char *hostname){
         return EXIT_FAILURE;
     }
     printf("Client socket:%i\n", sockfd);
-    inet_ntop(copy->ai_family, sockaddr_type((struct sockaddr *)copy->ai_addr), dst, sizeof(dst));
+    inet_ntop(copy->ai_family, copy->ai_addr, dst, sizeof(dst));
     printf("Connected to %s\n", dst);
 
     freeaddrinfo(servinfo);
