@@ -11,10 +11,11 @@
 #define MYPORT "1299"
 #define TXTLEN 1024
 #define LISTEN_BACKLOG 20
-#define FILENAME "output.txt"
+#define FILENAME "filename"
 #define NC "nc"
 #define ECHO "echo"
 #define HOSTNAME "localhost"
+#define TEMPLATE "tmp/mt-XXXXXX"
 
 int writeToFile(char *filename, char *msg){
     FILE *fp = fopen(filename,"w");
@@ -29,6 +30,18 @@ int writeToFile(char *filename, char *msg){
         return EXIT_FAILURE;
     }
     fclose(fp);
+    return EXIT_SUCCESS;
+}
+
+int make_tmp(){
+    char *tmp;
+    tmp = malloc(sizeof(TEMPLATE));
+    strcpy(tmp, TEMPLATE);
+    if(mkdtemp(tmp) == NULL){
+       fprintf(stderr, "Error:%s\n", strerror(errno));
+       return EXIT_FAILURE; 
+    }
+    printf("%s", tmp);
     return EXIT_SUCCESS;
 }
 
@@ -62,17 +75,19 @@ int main(int argc, char *argv[]){
     }
 
     for(copy = servinfo; copy != NULL; copy = copy -> ai_next){
-            if((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1){
+            if((sockfd = socket(copy->ai_family, copy->ai_socktype, copy->ai_protocol)) == -1){
                 continue; 
             }
 
-            if(bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) == -1){
+            if(bind(sockfd, copy->ai_addr, copy->ai_addrlen) == -1){
                 close(sockfd);
                 continue;
             }
 
             break;
     }
+
+    freeaddrinfo(servinfo);
     
     if(copy == NULL){
         fprintf(stderr, "Socket bind failed\n");
@@ -83,26 +98,25 @@ int main(int argc, char *argv[]){
     if(listen(sockfd, LISTEN_BACKLOG) == -1){
         fprintf(stderr, "Error:%s\n", strerror(errno));
         return EXIT_FAILURE;
-    };
+    }
 
+    printf("Listening on port:%s, socket:%i\n", MYPORT, sockfd);
     peer_address_size = sizeof(peer_addr);
-    printf("Waiting\n");
+    printf("Waiting on client\n");
     clientfd = accept(sockfd, (struct sockaddr *) &peer_addr, &peer_address_size);
     if(clientfd == -1){
         fprintf(stderr, "Error:%s\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
-    printf("Client connected\n");
+    printf("Client accepted on socket %i\n", clientfd);
     if((bytes = recvfrom(clientfd, msg, TXTLEN-1, 0, (struct sockaddr *)&peer_addr, &peer_address_size)) == -1){
         fprintf(stderr, "Error:%s\n", strerror(errno));
         return EXIT_FAILURE;
     }
     msg[bytes] = '\0';
-    //printf("%s\n", msg);
-    if(getpeername(sockfd,))
-    writeToFile(FILENAME, msg);
-    nc_return(msg);
+    send(clientfd, msg, bytes, 0);
+    //writeToFile(FILENAME, msg);
     close(sockfd);
     return EXIT_SUCCESS;
 }
