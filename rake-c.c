@@ -2,17 +2,17 @@
 
 struct local{
     char *file;
-    char *args[r_no];
+    char *args[R_NO];
     int arg_count;
 };
 
 struct remote{
     char *path;
-    char *args[r_no];
+    char *args[R_NO];
     int arg_count;
 };
 
-char *lines[r_no];
+char *lines[R_NO];
 struct local *locals = NULL;
 struct remote *remotes = NULL;
 int rows = 0;
@@ -143,32 +143,77 @@ char *populate(const char *line){
     }
     return type;
 }
-
+/*
+Check for IPv4 or IPv6
+Return the appropriate sock address.
+*/
+void *sockaddr_type(struct sockaddr *sockaddr){
+    if(sockaddr->sa_family == AF_INET){
+        return &(((struct sockaddr_in*)sockaddr)->sin_addr);
+    }
+    return &(((struct sockaddr_in6*)sockaddr)->sin6_addr);
+}
 /*
 Execute actionsets
 */
 int execute(char* type){
-    //char *binaryPath = "/bin/echo";
-    //char *args[] = {binaryPath, "starting", "actionset1", NULL};
- 
-    if(strcmp(type, "local") == 0){
-        execv(locals[0].file,locals[0].args);
-        if(errno != 0){
-            fprintf(stderr, "exe failed\n");
-        }
+
+    execv(locals[0].file,locals[0].args);
+    if(errno != 0){
+        fprintf(stderr, "exe failed\n");
+        return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
 
 int main(int argc, char **argv){ 
+    int sockfd;//, bytes;
+    //char msg[TXT_LEN];
+    struct addrinfo *servinfo, *copy, my_addr;
+    char dst[INET6_ADDRSTRLEN];
+
     if(argc > 1){
         readfile(argv[1]);
+
         //for(int i = 3; i < rows-1; i++){
             //populate(lines[i]);
         //}
-        populate(lines[3]);
-        
+        //populate(lines[3]);
     }
+
+    memset(&my_addr, 0, sizeof(my_addr));
+    my_addr.ai_family = AF_UNSPEC;
+    my_addr.ai_socktype = SOCK_STREAM;
+
+    if ((getaddrinfo("localhost", PORT, &my_addr, &servinfo)) == -1){
+        fprintf(stderr,"Error:%s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+
+    for(copy = servinfo; copy != NULL; copy = copy->ai_next){
+        if((sockfd = socket(copy->ai_family, copy->ai_socktype, copy->ai_protocol)) == -1){
+            continue;
+        }
+
+        if(connect(sockfd, copy->ai_addr, copy->ai_addrlen) == -1){
+            close(sockfd);
+            continue;
+        }
+
+        break;
+    }
+
+    if(copy == NULL){
+        fprintf(stderr, "Client failed to connect\n");
+        return EXIT_FAILURE;
+    }
+
+    inet_ntop(copy->ai_family, sockaddr_type((struct sockaddr *)copy->ai_addr), dst, sizeof(dst));
+    printf("connected to %s\n", dst);
+
+    freeaddrinfo(servinfo);
+
+    close(sockfd);
     //execute(array);
     return EXIT_SUCCESS;
 }
