@@ -6,15 +6,16 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 #include <netdb.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #define MYPORT "1299"
-#define TXTLEN 1024
+#define TXTLEN 128
 #define LISTEN_BACKLOG 20
 #define FILENAME "filename"
-#define NC "nc"
-#define ECHO "echo"
-#define HOSTNAME "localhost"
 #define TEMPLATE "tmp/mt-XXXXXX"
 
 int writeToFile(char *filename, char *msg){
@@ -45,15 +46,33 @@ int make_tmp(){
     return EXIT_SUCCESS;
 }
 
-int nc_return(char *msg){
-    char *str = msg;
-    str[strlen(msg) - 1] = '\0';
-    char *args[] = {ECHO, str, "|", NC, HOSTNAME, MYPORT, NULL};
-    if(execvp(ECHO, args) == -1){
-        fprintf(stderr,"Error:%s\n", strerror(errno));
-        return EXIT_FAILURE;
+void hostname(){
+    /*struct hostent *host_detail;
+    char hostname[TXTLEN];
+    char *IP;
+    hostname[TXTLEN-1] = '\0';
+    if(gethostname(hostname, TXTLEN) == -1){
+        fprintf(stderr, "gethostname:%s\n", strerror(errno));
     }
-    return EXIT_SUCCESS;
+    if((host_detail = gethostbyname(hostname)) == NULL){
+        fprintf(stderr, "gethostbyname:%s\n", strerror(errno));
+    }
+    if((IP = inet_ntoa(*((struct in_addr*)host_detail->h_addr_list[0]))) == NULL){
+        perror("inet_ntoa\n");
+    }
+    printf("My name is:%s\n", hostname);
+    */
+    int sockn;
+    struct ifreq ifr;
+    char array[] = "eth0";
+
+    sockn = socket(AF_INET, SOCK_DGRAM, 0);
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name, array, IFNAMSIZ-1);
+    ioctl(sockn, SIOCGIFADDR, &ifr);
+    close(sockn);
+
+    printf("My IP is:%s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 }
 
 // Function to return output of client communication
@@ -100,24 +119,32 @@ int main(int argc, char *argv[]){
     struct sockaddr_storage peer_addr;
     socklen_t peer_address_size;
     char msg[TXTLEN];
+    
     int bytes;
+    int reuse_addr = 1;
 
     memset(&my_addr, 0, sizeof(my_addr));
-    my_addr.ai_family = AF_UNSPEC;
+    my_addr.ai_family = AF_INET;
     my_addr.ai_socktype = SOCK_STREAM;
     my_addr.ai_flags = AI_PASSIVE;
 
-
     if(getaddrinfo(NULL, MYPORT, &my_addr, &servinfo) == -1){
-        fprintf(stderr,"Error:%s\n", strerror(errno));
+        fprintf(stderr,"getaddrinfo:%s\n", strerror(errno));
     }
 
     for(copy = servinfo; copy != NULL; copy = copy -> ai_next){
             if((sockfd = socket(copy->ai_family, copy->ai_socktype, copy->ai_protocol)) == -1){
+                fprintf(stderr, "sockfd:%s\n", strerror(errno));
                 continue; 
             }
 
+            if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(int)) == -1){
+                fprintf(stderr, "setsockopt:%s\n", strerror(errno));
+                return EXIT_FAILURE;
+            }
+
             if(bind(sockfd, copy->ai_addr, copy->ai_addrlen) == -1){
+                fprintf(stderr, "bind:%s\n", strerror(errno));
                 close(sockfd);
                 continue;
             }
@@ -131,32 +158,33 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "Socket bind failed\n");
         return EXIT_FAILURE;
     }
-    printf("Socket no:%i\n", sockfd);
-
+    
     if(listen(sockfd, LISTEN_BACKLOG) == -1){
-        fprintf(stderr, "Error:%s\n", strerror(errno));
+        fprintf(stderr, "listen:%s\n", strerror(errno));
         return EXIT_FAILURE;
     }
-
+    hostname();
     printf("Listening on port:%s, socket:%i\n", MYPORT, sockfd);
     peer_address_size = sizeof(peer_addr);
     printf("Waiting on client\n");
     clientfd = accept(sockfd, (struct sockaddr *) &peer_addr, &peer_address_size);
     if(clientfd == -1){
-        fprintf(stderr, "Error:%s\n", strerror(errno));
+        fprintf(stderr, "accept:%s\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
     printf("Client accepted on socket %i\n", clientfd);
-    if((bytes = recvfrom(clientfd, msg, TXTLEN-1, 0, (struct sockaddr *)&peer_addr, &peer_address_size)) == -1){
-        fprintf(stderr, "Error:%s\n", strerror(errno));
+    if((bytes = recv(clientfd, msg, TXTLEN-1, 0)) == -1){
+        fprintf(stderr, "recv:%s\n", strerror(errno));
         return EXIT_FAILURE;
     }
     msg[bytes] = '\0';
-    //send(clientfd, msg, bytes, 0);
+    printf("%s\n", msg);
     //instead of sending the msg that was sent to server, send output of command
-    return_output(clientfd, msg);
-    //writeToFile(FILENAME, msg);
+    if(/*send(clientfd, msg, bytes, 0)*/return_output(clientfd, msg) == -1){
+        fprintf(stderr, "send:%s\n", strerror(errno));
+    }
+    writeToFile(FILENAME, msg);
     close(sockfd);
     return EXIT_SUCCESS;
 }
