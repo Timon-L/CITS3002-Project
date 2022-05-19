@@ -58,7 +58,6 @@ char **split(const char *str, int *w_count){
             words = realloc(words, (*w_count+1)*sizeof(words[0]));
             words[*w_count] = word;
             word = strtok(NULL, " ");
-            //printf("%s\n", words[*w_count]);
             *w_count += 1;
         }
         free(word);
@@ -130,7 +129,7 @@ char *populate(const char *line){
         printf("Path:%s\n", locals[loc_count-1].file);
         printf("Options:%i\n", locals[loc_count-1].arg_count);
         for(int i = 0; i < locals[loc_count-1].arg_count; i++){
-        printf("%s\n", locals[loc_count-1].args[i]);
+            printf("%s\n", locals[loc_count-1].args[i]);
         }
     }
     else{
@@ -153,6 +152,60 @@ void *sockaddr_type(struct sockaddr *sockaddr){
     }
     return &(((struct sockaddr_in6*)sockaddr)->sin6_addr);
 }
+
+int communicate(char *hostname){
+    int sockfd, bytes;
+    char msg[TXT_LEN];
+    struct addrinfo *servinfo, *copy, my_addr;
+    char dst[INET6_ADDRSTRLEN];
+
+    memset(&my_addr, 0, sizeof(my_addr));
+    my_addr.ai_family = AF_UNSPEC;
+    my_addr.ai_socktype = SOCK_STREAM;
+
+    if ((getaddrinfo(hostname, PORT, &my_addr, &servinfo)) == -1){
+        fprintf(stderr,"getaddrinfo:%s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+
+    for(copy = servinfo; copy != NULL; copy = copy->ai_next){
+        if((sockfd = socket(copy->ai_family, copy->ai_socktype, copy->ai_protocol)) == -1){
+            fprintf(stderr, "sockfd:%s\n", strerror(errno));
+            continue;
+        }
+
+        if(connect(sockfd, copy->ai_addr, copy->ai_addrlen) == -1){
+            fprintf(stderr, "connect:%s\n", strerror(errno));
+            close(sockfd);
+            continue;
+        }
+
+        break;
+    }
+
+    if(copy == NULL){
+        fprintf(stderr, "Client failed to connect\n");
+        return EXIT_FAILURE;
+    }
+    printf("Client socket:%i\n", sockfd);
+    inet_ntop(copy->ai_family, sockaddr_type((struct sockaddr *)copy->ai_addr), dst, sizeof(dst));
+    printf("Connected to %s\n", dst);
+
+    freeaddrinfo(servinfo);
+    
+    if(send(sockfd, "Client to server success", TXT_LEN-1, 0) == -1){
+        fprintf(stderr, "send:%s\n", strerror(errno));
+    }
+
+    if((bytes = recv(sockfd, msg, TXT_LEN-1, 0)) == -1){
+         fprintf(stderr, "recv:%s\n", strerror(errno));
+    }
+    msg[bytes] = '\0';
+    printf("%s\n", msg);
+
+    close(sockfd);
+    return EXIT_SUCCESS;
+}
 /*
 Execute actionsets
 */
@@ -167,53 +220,9 @@ int execute(char* type){
 }
 
 int main(int argc, char **argv){ 
-    int sockfd;//, bytes;
-    //char msg[TXT_LEN];
-    struct addrinfo *servinfo, *copy, my_addr;
-    char dst[INET6_ADDRSTRLEN];
-
     if(argc > 1){
         readfile(argv[1]);
-
-        //for(int i = 3; i < rows-1; i++){
-            //populate(lines[i]);
-        //}
-        //populate(lines[3]);
     }
-
-    memset(&my_addr, 0, sizeof(my_addr));
-    my_addr.ai_family = AF_UNSPEC;
-    my_addr.ai_socktype = SOCK_STREAM;
-
-    if ((getaddrinfo("localhost", PORT, &my_addr, &servinfo)) == -1){
-        fprintf(stderr,"Error:%s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    for(copy = servinfo; copy != NULL; copy = copy->ai_next){
-        if((sockfd = socket(copy->ai_family, copy->ai_socktype, copy->ai_protocol)) == -1){
-            continue;
-        }
-
-        if(connect(sockfd, copy->ai_addr, copy->ai_addrlen) == -1){
-            close(sockfd);
-            continue;
-        }
-
-        break;
-    }
-
-    if(copy == NULL){
-        fprintf(stderr, "Client failed to connect\n");
-        return EXIT_FAILURE;
-    }
-
-    inet_ntop(copy->ai_family, sockaddr_type((struct sockaddr *)copy->ai_addr), dst, sizeof(dst));
-    printf("connected to %s\n", dst);
-
-    freeaddrinfo(servinfo);
-
-    close(sockfd);
-    //execute(array);
+    communicate("DESKTOP-43OS8H5");
     return EXIT_SUCCESS;
 }
