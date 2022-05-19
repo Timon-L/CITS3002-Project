@@ -7,5 +7,10 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
-#define r_no 100
+#define R_NO 100
+#define TXT_LEN 1024
+#define PORT "1299"
