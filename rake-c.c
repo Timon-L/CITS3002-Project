@@ -223,6 +223,6 @@ int main(int argc, char **argv){
     if(argc > 1){
         readfile(argv[1]);
     }
-    communicate("DESKTOP-43OS8H5");
+    communicate("127.0.1.1");
     return EXIT_SUCCESS;
 }
