@@ -56,6 +56,44 @@ int nc_return(char *msg){
     return EXIT_SUCCESS;
 }
 
+// Function to return output of client communication
+int return_output(int client,char *msg){
+    if(strcmp(msg, "REQUEST QUOTE") == 0){
+        char cost[3];
+        int random_number = rand() % 100 + 1;
+        sprintf(cost, "%d", random_number);
+        send(client, cost, sizeof(int), 0);
+        exit(EXIT_SUCCESS);
+    }
+    /*elif sending file{
+        take file and store it somewhere
+    }*/
+
+    // If its not requesting quote or sending file, its giving a command, send output of that command
+    else{
+        FILE * fp;
+        char * line = NULL;
+        size_t len = 0;
+        ssize_t read;
+        //char * output = malloc(0);
+
+        fp = popen(msg, "r");
+        if (fp == NULL)
+            exit(EXIT_FAILURE);
+
+        while ((read = getline(&line, &len, fp)) != -1) {
+            send(client, line, sizeof(char) * strlen(line), 0);
+            //output = realloc(output, sizeof(char) * (strlen(output) + strlen(line)));
+            //strcat(output, line);
+        }
+
+        pclose(fp);
+        if (line)
+            free(line);
+        exit(EXIT_SUCCESS);
+    }
+}
+
 int main(int argc, char *argv[]){
     int sockfd, clientfd;
     struct addrinfo *servinfo, *copy, my_addr;
@@ -115,7 +153,9 @@ int main(int argc, char *argv[]){
         return EXIT_FAILURE;
     }
     msg[bytes] = '\0';
-    send(clientfd, msg, bytes, 0);
+    //send(clientfd, msg, bytes, 0);
+    //instead of sending the msg that was sent to server, send output of command
+    return_output(clientfd, msg);
     //writeToFile(FILENAME, msg);
     close(sockfd);
     return EXIT_SUCCESS;

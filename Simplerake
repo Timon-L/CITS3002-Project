@@ -4,7 +4,7 @@ PORT = 1299
 HOSTS = localhost
 
 actionset1:
-	cal
+	remote cal
 
 actionset2:
-	remote cal
+	cal
