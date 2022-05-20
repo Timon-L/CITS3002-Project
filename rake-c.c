@@ -215,7 +215,7 @@ int execute(char* type){
     struct sockaddr_in my_addr, my_addr1;
     my_addr.sin_family = AF_INET;
     my_addr.sin_addr.s_addr = INADDR_ANY;
-    my_addr.sin_port = htons(1299); ///?
+    my_addr.sin_port = htons(PORT); ///?
     
     
     // Two buffer are for message communication
