@@ -207,7 +207,9 @@ def cheapest_quote(hostnames):
     quotes = []
     for host in hostnames:
         quote = send_command(host, PORT, "REQUEST QUOTE".encode())
+        vprint("RECEIVED " + host + " QUOTE: " + quote + '\n')
         quotes.append(quote)
+    vprint("ACCEPTING: " + host + '\n')
     return hostnames[quote.index(max(quote))]
 
 

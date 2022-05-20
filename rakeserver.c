@@ -163,28 +163,44 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "listen:%s\n", strerror(errno));
         return EXIT_FAILURE;
     }
-    hostname();
-    printf("Listening on port:%s, socket:%i\n", MYPORT, sockfd);
-    peer_address_size = sizeof(peer_addr);
-    printf("Waiting on client\n");
-    clientfd = accept(sockfd, (struct sockaddr *) &peer_addr, &peer_address_size);
-    if(clientfd == -1){
-        fprintf(stderr, "accept:%s\n", strerror(errno));
-        return EXIT_FAILURE;
+    do{
+        hostname();
+        printf("Listening on port:%s, socket:%i\n", MYPORT, sockfd);
+        peer_address_size = sizeof(peer_addr);
+        printf("Waiting on client\n");
+        clientfd = accept(sockfd, (struct sockaddr *) &peer_addr, &peer_address_size);
+        //clientfd = accept(sockfd,0,0);
+        if(clientfd == -1){
+            fprintf(stderr, "accept:%s\n", strerror(errno));
+            return EXIT_FAILURE;
+        }
+        pid_t pid = fork();
+        printf("PID IS  %d \n", pid);
+        if (pid==-1) {
+            fprintf(stderr, "fork:%s\n", strerror(errno));
+            return EXIT_FAILURE;
+        }
+        else if (pid==0) {
+            close(sockfd);
+            printf("Client accepted on socket %i\n", clientfd);
+            if((bytes = recv(clientfd, msg, TXTLEN-1, 0)) == -1){
+                fprintf(stderr, "recv:%s\n", strerror(errno));
+                return EXIT_FAILURE;
+            }
+            msg[bytes] = '\0';
+            printf("%s\n", msg);
+            //instead of sending the msg that was sent to server, send output of command
+            if(/*send(clientfd, msg, bytes, 0)*/return_output(clientfd, msg) == -1){
+                fprintf(stderr, "send:%s\n", strerror(errno));
+            }
+            writeToFile(FILENAME, msg);
+            close(clientfd);
+            exit(EXIT_SUCCESS);
+        }
+        else {
+            close(clientfd);
+        }
     }
-
-    printf("Client accepted on socket %i\n", clientfd);
-    if((bytes = recv(clientfd, msg, TXTLEN-1, 0)) == -1){
-        fprintf(stderr, "recv:%s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-    msg[bytes] = '\0';
-    printf("%s\n", msg);
-    //instead of sending the msg that was sent to server, send output of command
-    if(/*send(clientfd, msg, bytes, 0)*/return_output(clientfd, msg) == -1){
-        fprintf(stderr, "send:%s\n", strerror(errno));
-    }
-    writeToFile(FILENAME, msg);
-    close(sockfd);
+    while(1);
     return EXIT_SUCCESS;
 }
