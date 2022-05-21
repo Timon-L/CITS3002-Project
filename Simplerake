@@ -1,11 +1,11 @@
 # A simple Rakefile
 
 PORT = 1299
-HOSTS = localhost
+HOSTS = localhost:1400 localhost:1300
 
 actionset1:
-	ls
-		requires test/test.txt
+	remote cal
 
 actionset2:
-	cal
+	ls
+		requires test/test.txt

@@ -101,6 +101,10 @@ def execute(actionsets):
                 try:
                     vprint("REQUESTING QUOTES.\n")
                     HOST = cheapest_quote(HOSTS)
+                    index = HOST.find(':')
+                    if(index != -1):
+                        PORT = int(HOST[index + 1:])
+                        HOST = HOST[:index]
 
                     # If there are required files, send them to server
                     if len(actions) == 2:
@@ -177,7 +181,6 @@ def send_command(hostname, port, command):
 Send file to server.
 """   
 def send_file(hostname, port, file):
-    buf = 4096
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     vprint("OPENING CONNECTION.")
     sock.connect((hostname, port))
@@ -195,7 +198,7 @@ def send_file(hostname, port, file):
         
         if len(data) == 0:
             break
-        vprint("RECEIVED DATA.")#, repr(data))
+        vprint("FILE RECEIVED.")#, repr(data))
     f.close()
     vprint("CLOSING CONNECTION.\n")
     sock.close()
@@ -207,10 +210,14 @@ Get quote from all servers and return hostname of cheapest server
 def cheapest_quote(hostnames):
     quotes = []
     for host in hostnames:
+        index = host.find(':')
+        if(index != -1):
+            PORT = int(host[index + 1:])
+            host = host[:index]
         quote = send_command(host, PORT, "REQUEST QUOTE".encode())
-        vprint("RECEIVED " + host + " QUOTE: " + quote + '\n')
+        vprint("RECEIVED " + host + ":" + str(PORT) + " QUOTE: " + quote + '\n')
         quotes.append(quote)
-    vprint("ACCEPTING: " + host + '\n')
+    vprint("ACCEPTING: " + host + ":" + str(PORT) + '\n')
     return hostnames[quote.index(max(quote))]
 
 
