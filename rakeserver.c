@@ -11,8 +11,9 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <time.h>
 
-#define MYPORT "1299"
+#define MYPORT argv[1]
 #define TXTLEN 128
 #define LISTEN_BACKLOG 20
 #define FILENAME "filename"
@@ -79,7 +80,8 @@ void hostname(){
 int return_output(int client,char *msg){
     if(strcmp(msg, "REQUEST QUOTE") == 0){
         char cost[3];
-        int random_number = rand() % 100 + 1;
+        srand(getpid());
+        int random_number = rand() % 100; 
         sprintf(cost, "%d", random_number);
         if(send(client, cost, sizeof(int), 0) == -1){
             fprintf(stderr, "send quote:%s\n", strerror(errno));
@@ -125,6 +127,10 @@ int return_output(int client,char *msg){
 }
 
 int main(int argc, char *argv[]){
+    if(argc != 2){
+        fprintf(stderr, "must type a port after './rakeserver'\n");
+        exit(EXIT_FAILURE);
+    }
     int sockfd, clientfd;
     struct addrinfo *servinfo, *copy, my_addr;
     struct sockaddr_storage peer_addr;
