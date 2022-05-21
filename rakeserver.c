@@ -81,12 +81,23 @@ int return_output(int client,char *msg){
         char cost[3];
         int random_number = rand() % 100 + 1;
         sprintf(cost, "%d", random_number);
-        send(client, cost, sizeof(int), 0);
+        if(send(client, cost, sizeof(int), 0) == -1){
+            fprintf(stderr, "send quote:%s\n", strerror(errno));
+        }
         exit(EXIT_SUCCESS);
     }
-    /*elif sending file{
-        take file and store it somewhere
-    }*/
+    else if(strstr(msg, "requires") != NULL){
+        strtok(msg, ",");
+        FILE * fp;
+        fp = fopen(strtok(NULL, ","), "w");
+        fputs(strtok(NULL, ","), fp);
+        
+        if(send(client, "RECEIVED FILE.", sizeof(char) * strlen("RECEIVED FILE."), 0) == -1){
+            fprintf(stderr, "send requires:%s\n", strerror(errno));
+        }
+        fclose(fp);
+        exit(EXIT_SUCCESS);
+    }
 
     // If its not requesting quote or sending file, its giving a command, send output of that command
     else{
@@ -175,7 +186,6 @@ int main(int argc, char *argv[]){
             return EXIT_FAILURE;
         }
         pid_t pid = fork();
-        printf("PID IS  %d \n", pid);
         if (pid==-1) {
             fprintf(stderr, "fork:%s\n", strerror(errno));
             return EXIT_FAILURE;

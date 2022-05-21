@@ -1,6 +1,6 @@
 from ctypes import sizeof
 from mmap import PROT_READ, PROT_WRITE
-#import os
+import os
 import socket
 import sys
 
@@ -167,7 +167,7 @@ def send_command(hostname, port, command):
         if len(data) == 0:
             break
         output += data.decode("utf-8")
-        vprint("RECEIVED:\n", data.decode("utf-8"))
+        vprint("RECEIVED DATA.")#, data.decode("utf-8"))
     vprint("CLOSING CONNECTION.\n")
     sock.close()
     return output
@@ -177,6 +177,7 @@ def send_command(hostname, port, command):
 Send file to server.
 """   
 def send_file(hostname, port, file):
+    buf = 4096
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     vprint("OPENING CONNECTION.")
     sock.connect((hostname, port))
@@ -184,9 +185,9 @@ def send_file(hostname, port, file):
     # Open and read file
     f = open(file, "r")
     d = f.read()
-    
-    sock.send(file.encode())
-    sock.send(d.encode())
+    filename = file[file.rfind('/') + 1:]
+    #fsize = os.path.getsize(file)
+    sock.send(f"requires,{filename},{d}".encode())
 
     sock.shutdown(socket.SHUT_WR)
     while 1:
@@ -194,7 +195,7 @@ def send_file(hostname, port, file):
         
         if len(data) == 0:
             break
-        vprint("RECEIVED:\n", repr(data))
+        vprint("RECEIVED DATA.")#, repr(data))
     f.close()
     vprint("CLOSING CONNECTION.\n")
     sock.close()
