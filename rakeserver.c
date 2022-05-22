@@ -48,7 +48,7 @@ int make_tmp(){
 }
 
 void hostname(){
-    /*struct hostent *host_detail;
+    struct hostent *host_detail;
     char hostname[TXTLEN];
     char *IP;
     hostname[TXTLEN-1] = '\0';
@@ -62,18 +62,7 @@ void hostname(){
         perror("inet_ntoa\n");
     }
     printf("My name is:%s\n", hostname);
-    */
-    int sockn;
-    struct ifreq ifr;
-    char array[] = "eth0";
-
-    sockn = socket(AF_INET, SOCK_DGRAM, 0);
-    ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name, array, IFNAMSIZ-1);
-    ioctl(sockn, SIOCGIFADDR, &ifr);
-    close(sockn);
-
-    printf("My IP is:%s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+    printf("My IP is:%s\n", IP);
 }
 
 // Function to return output of client communication
@@ -206,7 +195,7 @@ int main(int argc, char *argv[]){
             msg[bytes] = '\0';
             printf("%s\n", msg);
             //instead of sending the msg that was sent to server, send output of command
-            if(/*send(clientfd, msg, bytes, 0)*/return_output(clientfd, msg) == -1){
+            if(send(clientfd, msg, bytes, 0) == -1){
                 fprintf(stderr, "send:%s\n", strerror(errno));
             }
             writeToFile(FILENAME, msg);
