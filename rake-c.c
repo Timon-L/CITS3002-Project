@@ -184,8 +184,8 @@ int communicate(char *hostname, char *port){
         fprintf(stderr, "Client failed to connect\n");
     }
     printf("Client socket:%i\n", sockfd);
-    inet_ntop(copy->ai_family, copy->ai_addr, dst, sizeof(dst));
-    printf("Connected to %s\n", dst);
+    inet_ntop(servinfo->ai_family, (struct sockaddr *)copy->ai_addr, dst, sizeof(dst));
+    printf("Connected to %s, IP:%s\n", hostname, dst);
 
     freeaddrinfo(servinfo);
     return sockfd;
@@ -236,9 +236,9 @@ int read_block(int *fd_list, int fd_count){
 }
 
 int write_block(int *fd_list, int fd_count){
-    int fd_active = fd_count;
+    int fd_active = 0;
     //char msg[TXT_LEN];
-    while(fd_active > 0){
+    while(fd_active != fd_count){
         fd_set write_fds;
         FD_ZERO(&write_fds);
         int fdmax = -1;
@@ -268,9 +268,10 @@ int write_block(int *fd_list, int fd_count){
                     fprintf(stderr, "send:%s\n", strerror(errno));
                     close(fd_list[j]);
                     fprintf(stdout, "%2i: closed\n", fd_list[j]);
+                    fd_list[j] = -1;
+                    fd_active--;     
                 }
-                fd_list[j] = -1;
-                fd_active--;       
+                fd_active++;
             }
         }
     }
@@ -339,7 +340,6 @@ int execute(char* type){
 
 int main(int argc, char **argv){ 
     //fd_set master;
-    //fd_set read_fds;
     int *fd_list;
     int port_count;
     int fd_count;
@@ -350,6 +350,7 @@ int main(int argc, char **argv){
     }
     strcpy(tmp_str,lines[0]);
     char *port = strdup(split(tmp_str, &port_count)[0]);
+    memset(tmp_str, '\0', sizeof(tmp_str));
     strcpy(tmp_str,lines[1]);
     char **hosts = split(tmp_str, &fd_count);
     for(int i = 0; i < fd_count; i++){
@@ -358,6 +359,9 @@ int main(int argc, char **argv){
         fd_list[i] = sock_no;
     }
     write_block(fd_list, fd_count);
+    for(int i = 0; i < fd_count; i++){
+        printf("Socket in list:%i\n", fd_list[i]);
+    }
     read_block(fd_list, fd_count);
     return EXIT_SUCCESS;
 }
