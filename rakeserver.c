@@ -68,11 +68,13 @@ void hostname(){
 // Function to return output of client communication
 int return_output(int client,char *msg){
     if(strcmp(msg, "REQUEST QUOTE") == 0){
-        char cost[3];
+        char c[3];
         srand(getpid());
         int random_number = rand() % 100; 
+        sprintf(c, "%d", random_number);
+        char cost[strlen(c)];
         sprintf(cost, "%d", random_number);
-        if(send(client, cost, sizeof(int), 0) == -1){
+        if(send(client, cost, sizeof(char) * strlen(cost), 0) == -1){
             fprintf(stderr, "send quote:%s\n", strerror(errno));
         }
         exit(EXIT_SUCCESS);
@@ -96,7 +98,6 @@ int return_output(int client,char *msg){
         char * line = NULL;
         size_t len = 0;
         ssize_t read;
-        //char * output = malloc(0);
 
         fp = popen(msg, "r");
         if (fp == NULL)
@@ -104,8 +105,6 @@ int return_output(int client,char *msg){
 
         while ((read = getline(&line, &len, fp)) != -1) {
             send(client, line, sizeof(char) * strlen(line), 0);
-            //output = realloc(output, sizeof(char) * (strlen(output) + strlen(line)));
-            //strcat(output, line);
         }
 
         pclose(fp);
@@ -195,7 +194,7 @@ int main(int argc, char *argv[]){
             msg[bytes] = '\0';
             printf("%s\n", msg);
             //instead of sending the msg that was sent to server, send output of command
-            if(send(clientfd, msg, bytes, 0) == -1){
+            if(/*send(clientfd, msg, bytes, 0)*/ return_output(clientfd, msg) == -1){
                 fprintf(stderr, "send:%s\n", strerror(errno));
             }
             writeToFile(FILENAME, msg);
