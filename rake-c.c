@@ -36,7 +36,7 @@ int readfile(char *filename){
         fprintf(stderr, "Fail to open file '%s'\n", filename);
         return EXIT_FAILURE;
     }
-
+    
     while((read = getline(&line, &bufsize, fp)) != -1){
         if(line[0] != '#' && line[0] != '\r'){
             ++rows;
@@ -50,6 +50,9 @@ int readfile(char *filename){
     return EXIT_SUCCESS;
 }
 
+/*
+Equivalent to python split()
+*/
 char **split(const char *str, int *w_count){
     char **words = NULL;
     char *copy = strdup(str);
@@ -71,6 +74,7 @@ char **split(const char *str, int *w_count){
     }
     return words;
 }
+
 /*
 Sort command into remote or local.
 */
@@ -120,6 +124,7 @@ char *action_check(char **line, int w_count){
         return "local";
     }
 }
+
 /*
 Split line and generate local or remote using action_check.
 */
@@ -149,6 +154,9 @@ void populate(const char *line){
     }
 }
 
+/*
+Connect to host. Report any failures
+*/
 int communicate(char *hostname, char *port){
     int sockfd;
     struct addrinfo *servinfo, *copy, my_addr;
@@ -158,6 +166,7 @@ int communicate(char *hostname, char *port){
     my_addr.ai_family = AF_INET;
     my_addr.ai_socktype = SOCK_STREAM;
 
+    // could not get the address info for a given web host
     if ((getaddrinfo(hostname, port, &my_addr, &servinfo)) == -1){
         fprintf(stderr,"getaddrinfo:%s\n", strerror(errno));
     }
@@ -167,7 +176,6 @@ int communicate(char *hostname, char *port){
             fprintf(stderr, "sockfd:%s\n", strerror(errno));
             continue;
         }
-
         if(connect(sockfd, copy->ai_addr, copy->ai_addrlen) == -1){
             fprintf(stderr, "connect:%s\n", strerror(errno));
             close(sockfd);
