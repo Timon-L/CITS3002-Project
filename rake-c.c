@@ -16,7 +16,7 @@ struct remote{
 char *lines[R_NO];
 struct local *locals = NULL;
 struct remote *remotes = NULL;
-int rows = 0;
+int rows = -1;
 int loc_count = 0;
 int rem_count = 0;
 int verbose = 0;
@@ -39,10 +39,10 @@ int readfile(char *filename){
 
     while((read = getline(&line, &bufsize, fp)) != -1){
         if(line[0] != '#' && line[0] != '\r'){
+            ++rows;
             line[strlen(line) - 2] = '\0';
             lines[rows] = malloc(strlen(line) + 1);
             strcpy(lines[rows], line);
-            ++rows;
         }
     }
     free(line);
@@ -73,25 +73,23 @@ char **split(const char *str, int *w_count){
 }
 /*
 Sort command into remote or local.
-TODO: look into remote format.
 */
 char *action_check(char **line, int w_count){
     char *arg1;
-    char bin[32] = "/bin/";
     //Checking for single tab character or double tab.
     if(line[0][1] != '\t'){
-        arg1 = malloc(strlen(line[0])-1);
-        strncpy(arg1, &line[0][1], strlen(line[0]));
+        arg1 = malloc(strlen(line[0]));
+        strcpy(arg1, &line[0][1]);
     }
     else{
-        arg1 = malloc(strlen(line[0])-2);
-        strncpy(arg1, &line[0][2], strlen(line[0]));
+        arg1 = malloc(strlen(line[0]));
+        strcpy(arg1, &line[0][2]);
     }
     //Remote commands.
     if(strcmp(arg1, "remote-cc") == 0 || strcmp(arg1, "requires") == 0){
         struct remote *r = malloc(sizeof(*r) + sizeof(r->args[0]));
-        strcpy(r->path,arg1);
-        strcpy(r->args[0],arg1);
+        r->path = strdup(arg1);
+        r->args[0] = strdup(arg1);
         for(int i = 1; i < w_count; i++){
             r->args[i] = malloc(strlen(line[i]) + 1);
             r->args[i] = line[i];
@@ -106,11 +104,9 @@ char *action_check(char **line, int w_count){
     }
     //Local commands.
     else{
-        strcat(bin,arg1);
-        printf("%s\n", bin);
         struct local *l = malloc(sizeof(*l) + sizeof(l->args[0]));
-        strcpy(l->file,bin);
-        strcpy(l->args[0],bin);
+        l->file = strdup(arg1);
+        l->args[0] = strdup(arg1);
         for(int i = 1; i < w_count; i++){
             l->args[i] = malloc(strlen(line[i] + 1));
             l->args[i] = line[i];
@@ -127,29 +123,30 @@ char *action_check(char **line, int w_count){
 /*
 Split line and generate local or remote using action_check.
 */
-char *populate(const char *line){
-    int w_count;
-    char **word_arr = split(line, &w_count);
-    char *type = action_check(word_arr, w_count);
-    if(verbose){
-        if(strcmp(type,"local") == 0){
-            printf("Local no.:%i\n", loc_count);
-            printf("Path:%s\n", locals[loc_count-1].file);
-            printf("Options:%i\n", locals[loc_count-1].arg_count);
-            for(int i = 0; i < locals[loc_count-1].arg_count; i++){
-                printf("%s\n", locals[loc_count-1].args[i]);
+void populate(const char *line){
+    if(line[0] == '\t'){
+        int w_count;
+        char **word_arr = split(line, &w_count);
+        char *type = action_check(word_arr, w_count);
+        if(verbose){
+            if(strcmp(type,"local") == 0){
+                printf("Local no.:%i\n", loc_count);
+                printf("Path:%s\n", locals[loc_count-1].file);
+                printf("Options:%i\n", locals[loc_count-1].arg_count);
+                for(int i = 0; i < locals[loc_count-1].arg_count; i++){
+                    printf("%s\n", locals[loc_count-1].args[i]);
+                }
+            }
+            else{
+                printf("Remote no.:%i\n", rem_count);
+                printf("Path:%s\n", remotes[rem_count-1].path);
+                printf("Options:%i\n", remotes[rem_count-1].arg_count);
+                for(int i = 0; i < remotes[rem_count-1].arg_count; i++){
+                    printf("%s\n", remotes[rem_count-1].args[i]);
+                }
             }
         }
-        else{
-            printf("Remote no.:%i\n", rem_count);
-            printf("Path:%s\n", remotes[rem_count-1].path);
-            printf("Options:%i\n", remotes[rem_count-1].arg_count);
-            for(int i = 0; i < remotes[rem_count-1].arg_count; i++){
-                printf("%s\n", remotes[rem_count-1].args[i]);
-        }
-        }
     }
-    return type;
 }
 
 int communicate(char *hostname, char *port){
@@ -237,7 +234,6 @@ int read_block(int *fd_list, int fd_count){
 
 int write_block(int *fd_list, int fd_count){
     int fd_active = 0;
-    //char msg[TXT_LEN];
     while(fd_active != fd_count){
         fd_set write_fds;
         FD_ZERO(&write_fds);
@@ -339,14 +335,22 @@ int execute(char* type){
 */
 
 int main(int argc, char **argv){ 
-    //fd_set master;
     int *fd_list;
     int port_count;
     int fd_count;
     char tmp_str[128];
     int sock_no;
-    if(argc > 1){
+    if(argc == 3){
+        if(strcmp(argv[1], "-v") == 0){
+            verbose = 1;
+            readfile(argv[2]);
+        }
+    }
+    else if(argc > 1){
         readfile(argv[1]);
+    }
+    for(int i = 2; i < rows; i++){
+        populate(lines[i]);
     }
     strcpy(tmp_str,lines[0]);
     char *port = strdup(split(tmp_str, &port_count)[0]);
@@ -359,9 +363,6 @@ int main(int argc, char **argv){
         fd_list[i] = sock_no;
     }
     write_block(fd_list, fd_count);
-    for(int i = 0; i < fd_count; i++){
-        printf("Socket in list:%i\n", fd_list[i]);
-    }
     read_block(fd_list, fd_count);
     return EXIT_SUCCESS;
 }
