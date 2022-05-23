@@ -90,6 +90,7 @@ def make_sets(actionsets):
 Execute commands in each actionset
 """
 def execute(actionsets):
+    global PORT
     setnum = 1
     for actionset in actionsets:
         vprint("STARTING ACTIONSET " + str(setnum) +  " ACTIONS:" + '\n')
@@ -119,8 +120,8 @@ def execute(actionsets):
                     events.write("REMOTE ACTION: " + '\n' + actions[0][7:] + '\n\n')
                     out = send_command(HOST, PORT, actions[0][7:].encode())
                 except Exception as e:
-                    vprint("ERROR: " + '\n' + str(e) + '\n\n')
-                    events.write("ERROR: " + '\n' + str(e) + '\n\n\n')
+                    vprint("ERROR REMOTE ACTION: " + '\n' + str(e) + '\n\n')
+                    events.write("ERROR REMOTE ACTION: " + '\n' + str(e) + '\n\n\n')
                     sys.exit(1)
                 else:
                     vprint("OUTPUT: " + '\n' + out + '\n')
@@ -130,6 +131,7 @@ def execute(actionsets):
             else:
                 try:
                     HOST = "localhost"
+                    
                     # If there are required files, send them to server
                     if len(actions) == 2:
                         for file in actions[1][9:].split(" "):
@@ -141,8 +143,8 @@ def execute(actionsets):
                     events.write("ACTION: " + '\n' + actions[0] + '\n\n')
                     out = send_command(HOST, PORT, actions[0].encode())
                 except Exception as e:
-                    vprint("ERROR: " + '\n' + str(e) + '\n\n')
-                    events.write("ERROR: " + '\n' + str(e) + '\n\n\n')
+                    vprint("ERROR LOCAL ACTION: " + '\n' + str(e) + '\n\n')
+                    events.write("ERROR LOCAL ACTION: " + '\n' + str(e) + '\n\n\n')
                     sys.exit(1)
                 else:
                     vprint("OUTPUT: " + '\n' + out + '\n')
@@ -220,6 +222,7 @@ def send_file(hostname, port, file):
 Get quote from all servers and return hostname of cheapest server
 """
 def cheapest_quote(hostnames):
+    global PORT
     quotes = []
     for host in hostnames:
         index = host.find(':')

@@ -1,0 +1,18 @@
+# A Multifile Rakefile
+
+PORT = 1299
+HOSTS = localhost:1400 localhost:1500
+
+actionset1:
+	echo starting actionset1
+	remote-cc -c helloworld.c
+		requires test/helloworld.c test/helloworld.h
+
+actionset2:
+	echo starting actionset2
+	remote-cc -o hello helloworld.o
+		requires helloworld.o
+
+actionset3:
+	echo starting actionset3
+	remote-./hell
