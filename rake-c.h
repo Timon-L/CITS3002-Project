@@ -10,7 +10,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/select.h>
 
 #define R_NO 100
 #define TXT_LEN 1024
-#define PORT "1299"
