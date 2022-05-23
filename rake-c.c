@@ -36,7 +36,7 @@ int readfile(char *filename){
         fprintf(stderr, "Fail to open file '%s'\n", filename);
         return EXIT_FAILURE;
     }
-    
+
     while((read = getline(&line, &bufsize, fp)) != -1){
         if(line[0] != '#' && line[0] != '\r'){
             ++rows;
@@ -50,9 +50,6 @@ int readfile(char *filename){
     return EXIT_SUCCESS;
 }
 
-/*
-Equivalent to python split()
-*/
 char **split(const char *str, int *w_count){
     char **words = NULL;
     char *copy = strdup(str);
@@ -74,7 +71,6 @@ char **split(const char *str, int *w_count){
     }
     return words;
 }
-
 /*
 Sort command into remote or local.
 */
@@ -124,7 +120,6 @@ char *action_check(char **line, int w_count){
         return "local";
     }
 }
-
 /*
 Split line and generate local or remote using action_check.
 */
@@ -154,20 +149,16 @@ void populate(const char *line){
     }
 }
 
-/*
-Connect to host. Report any failures
-*/
 int communicate(char *hostname, char *port){
     int sockfd;
-    struct addrinfo *servinfo, *copy, my_addr;
-    char dst[INET6_ADDRSTRLEN];
+    struct addrinfo *servinfo, *copy, hints;
 
-    memset(&my_addr, 0, sizeof(my_addr));
-    my_addr.ai_family = AF_INET;
-    my_addr.ai_socktype = SOCK_STREAM;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
 
-    // could not get the address info for a given web host
-    if ((getaddrinfo(hostname, port, &my_addr, &servinfo)) == -1){
+    if ((getaddrinfo(hostname, port, &hints, &servinfo)) == -1){
         fprintf(stderr,"getaddrinfo:%s\n", strerror(errno));
     }
 
@@ -176,6 +167,7 @@ int communicate(char *hostname, char *port){
             fprintf(stderr, "sockfd:%s\n", strerror(errno));
             continue;
         }
+
         if(connect(sockfd, copy->ai_addr, copy->ai_addrlen) == -1){
             fprintf(stderr, "connect:%s\n", strerror(errno));
             close(sockfd);
@@ -187,11 +179,10 @@ int communicate(char *hostname, char *port){
 
     if(copy == NULL){
         fprintf(stderr, "Client failed to connect\n");
+        return -1;
     }
     printf("Client socket:%i\n", sockfd);
-    inet_ntop(servinfo->ai_family, (struct sockaddr *)copy->ai_addr, dst, sizeof(dst));
-    printf("Connected to %s, IP:%s\n", hostname, dst);
-
+    printf("Hostname: %s\n", copy->ai_canonname);
     freeaddrinfo(servinfo);
     return sockfd;
 }
@@ -226,14 +217,18 @@ int read_block(int *fd_list, int fd_count){
 
         for(int j = 0; j <= fd_count; j++){
             if(fd_list[j] >= 0 && FD_ISSET(fd_list[j], &read_fds)){
-                if((nbytes = recv(fd_list[j], msg, TXT_LEN-1, 0)) <= 0){
-                     close(fd_list[j]);
-                     fprintf(stdout, "%2i: closed\n", fd_list[j]);
+                nbytes = recv(fd_list[j], msg, TXT_LEN-1, 0);
+                if(nbytes > 0){
+                    msg[nbytes] = '\0';
+                    printf("%s\n", msg);
                 }
-                msg[nbytes] = '\0';
-                printf("%s\n", msg);
-                fd_list[j] = -1;
-                fd_active--;           
+                if(nbytes <= 0){
+                    shutdown(fd_list[j], 2);
+                    close(fd_list[j]);
+                    fprintf(stdout, "Socket %i: closed\n", fd_list[j]);
+                    fd_list[j] = -1;
+                    fd_active--;     
+                }     
             }
         }
     }
@@ -258,12 +253,12 @@ int write_block(int *fd_list, int fd_count){
 
         if(fdmax == -1){
             printf("No socket found\n");
-            return EXIT_FAILURE;
+            return -1;
         }
 
         if(select(fdmax+1, NULL, &write_fds, NULL, NULL) == -1){
             fprintf(stderr, "select:%s\n", strerror(errno));
-            return EXIT_FAILURE;
+            return -1;
         }
 
         for(int j = 0; j <= fd_count; j++){
@@ -279,13 +274,74 @@ int write_block(int *fd_list, int fd_count){
             }
         }
     }
+    return fd_active;
+}
+
+/*
+Execute actionsets
+int execute(char* type){
+    int client = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in my_addr, my_addr1;
+    my_addr.sin_family = AF_INET;
+    my_addr.sin_addr.s_addr = INADDR_ANY;
+    my_addr.sin_port = htons(PORT); ///?
+    
+    
+    // Two buffer are for message communication
+    char buffer1[256], buffer2[256];
+ 
+    
+    execv(locals[0].file,locals[0].args);
+    if(errno != 0){
+        fprintf(stderr, "exe failed\n");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+    
+    FILE* events = fopen(FILE_NAME, "w"); //errors
+    if(FILE_NAME==NULL) {
+        perror("Error opening file");}
+
+    if (client < 0) {
+        fprintf(FILE_NAME, "Client creation failed\n");
+        printf("ERROR: Client creation failed\n");
+        return 1;
+    }
+
+    if (bind(client, (struct sockaddr*) &my_addr1, sizeof(struct sockaddr_in)) == 0)
+        printf("Binded Correctly\n");
+    else
+        fprintf(FILE_NAME, "Unable to bind\n");
+        printf("Unable to bind\n");
+     
+    socklen_t addr_size = sizeof my_addr;
+    int con = connect(client, (struct sockaddr*) &my_addr, sizeof my_addr);
+    if (con == 0)
+        printf("Client Connected\n");
+    else
+        fprintf(FILE_NAME, "Error in Connection\n");
+        printf("Error in Connection\n");
+ 
+    strcpy(buffer2, "Hello");
+    send(client, buffer2, 256, 0);
+    recv(client, buffer1, 256, 0);
+    printf("Server : %s\n", buffer1);
+    return 0;
+    
+    
+    fclose(FILE_NAME);
+
+    printf("Connected to %s\n", type);
+
     return EXIT_SUCCESS;
 }
+*/
 
 int main(int argc, char **argv){ 
     int *fd_list;
-    int port_count;
     int fd_count;
+    int port_count;
+    int fd_max;
     char tmp_str[128];
     int sock_no;
     if(argc == 3){
@@ -305,13 +361,31 @@ int main(int argc, char **argv){
     memset(tmp_str, '\0', sizeof(tmp_str));
     strcpy(tmp_str,lines[1]);
     char **hosts = split(tmp_str, &fd_count);
-    for(int i = 0; i < fd_count; i++){
+    fd_max = fd_count;
+    for(int i = 0; i < fd_max; i++){
         sock_no = communicate(hosts[i], port);
-        fd_list = realloc(fd_list, sizeof(int) * (i+1));
-        fd_list[i] = sock_no;
-        //fork()
+        if(sock_no != -1){
+            fd_list = realloc(fd_list, sizeof(int) * (i+1));
+            fd_list[i] = sock_no;
+        }
+        else{
+            fd_count--;
+        }
     }
-    write_block(fd_list, fd_count);
-    read_block(fd_list, fd_count);
+    fd_count = write_block(fd_list, fd_count);
+    if(fd_count != -1){
+        read_block(fd_list, fd_count);
+    }
+    else{
+        printf("Read error\n");
+        return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
+
+//reads and stores the contents of a Rakefile, 
+//executes actions (locally),
+//captures and report actions' output, and 
+//performs correctly based on whether the action(s) were successful or not
+
+//actions of the nc command (allocate a socket, and connect to an already running rakeserver). just hardcode the network name or address, and port-number of your server into your client's code, but eventually replace these with information read and stored from your Rakefile.
