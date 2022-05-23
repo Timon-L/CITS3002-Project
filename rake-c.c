@@ -301,6 +301,7 @@ int main(int argc, char **argv){
         sock_no = communicate(hosts[i], port);
         fd_list = realloc(fd_list, sizeof(int) * (i+1));
         fd_list[i] = sock_no;
+        //fork()
     }
     write_block(fd_list, fd_count);
     read_block(fd_list, fd_count);
