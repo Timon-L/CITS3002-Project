@@ -117,18 +117,20 @@ int return_output(int client,char *msg){
             fprintf(stderr, "send requires:%s\n", strerror(errno));
         }
 
-        // Client will then file data, read the data
-        int datalen = 4096;
+        // Client will then send file data, read the data
+        int datalen = 128;
         char data[datalen];
-        if((bytes = recv(client, data, datalen-1, 0)) == -1){
-            fprintf(stderr, "recv:%s\n", strerror(errno));
-            return EXIT_FAILURE;
+        do{
+            if((bytes = recv(client, data, datalen-1, 0)) == -1){
+                fprintf(stderr, "recv:%s\n", strerror(errno));
+                return EXIT_FAILURE;
+            }
+            data[bytes] = '\0';
+
+            // Write data into file
+            fputs(data, fp);
         }
-        data[bytes] = '\0';
-
-        // Write data into file
-        fputs(data, fp);
-
+        while(strcmp(data, "") != 0);
         // Tell client we received data
         printf("RECEIVED FILE DATA: %s.\n", data);
         if(send(client, "RECEIVED FILE DATA.", sizeof(char) * strlen("RECEIVED FILE DATA."), 0) == -1){
