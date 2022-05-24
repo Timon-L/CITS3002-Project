@@ -22,8 +22,6 @@ struct action{
 struct action actions[100];
 int act_count = 0;
 char *lines[R_NO];
-//struct local *locals = NULL;
-//struct remote *remotes = NULL;
 int rows = -1;
 int verbose = 0;
 
@@ -101,6 +99,7 @@ void action_check(const char *line, char **words, int w_count){
             actions[act_count].req_state = 0;
         }
     }
+    //Decide where to allocate required file req_state 0 = local, 1 = remote;
     else{
         if(actions[act_count].req_state == 0){
             strcpy(actions[act_count].locals[actions[act_count].loc_count].requires,&line[2]);
@@ -120,26 +119,6 @@ void populate(const char *line){
         int w_count;
         char **word_arr = split(line, &w_count);
         action_check(line, word_arr, w_count);
-        /*
-        if(verbose){
-            if(strcmp(type,"local") == 0){
-                printf("Local no.:%i\n", loc_count);
-                printf("Path:%s\n", locals[loc_count-1].file);
-                printf("Options:%i\n", locals[loc_count-1].arg_count);
-                for(int i = 0; i < locals[loc_count-1].arg_count; i++){
-                    printf("%s\n", locals[loc_count-1].args[i]);
-                }
-            }
-            else{
-                printf("Remote no.:%i\n", rem_count);
-                printf("Path:%s\n", remotes[rem_count-1].path);
-                printf("Options:%i\n", remotes[rem_count-1].arg_count);
-                for(int i = 0; i < remotes[rem_count-1].arg_count; i++){
-                    printf("%s\n", remotes[rem_count-1].args[i]);
-                }
-            }
-        }
-        */
     }
     else{
         act_count++;   
