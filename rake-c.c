@@ -54,10 +54,10 @@ int readfile(char *filename){
     return EXIT_SUCCESS;
 }
 
-char **split(const char *str, int *w_count){
+char **split(const char *str, int *w_count, char *delim){
     char **words = NULL;
     char *copy = strdup(str);
-    char *word = strtok(copy," ");
+    char *word = strtok(copy, delim);
     *w_count = 0;
 
     if(copy != NULL){
@@ -69,7 +69,7 @@ char **split(const char *str, int *w_count){
                 //printf("%s:%li\n", words[*w_count], strlen(words[*w_count]));
                 *w_count += 1;
             }
-            word = strtok(NULL, " ");
+            word = strtok(NULL, delim);
         }
         free(word);
     }
@@ -115,9 +115,10 @@ void action_check(const char *line, char **words, int w_count){
 Split line and generate local or remote using action_check.
 */
 void populate(const char *line){
+    char *space = " ";
     if(line[0] == '\t'){
         int w_count;
-        char **word_arr = split(line, &w_count);
+        char **word_arr = split(line, &w_count, space);
         action_check(line, word_arr, w_count);
     }
     else{
@@ -255,6 +256,21 @@ int write_block(int *fd_list, int fd_count){
     return fd_active;
 }
 
+int sock_assign(char *hosts, char* default_port){
+    int sock_no;
+    int arr_count;
+    char *colon = ":";
+    if(strstr(hosts, ":") != NULL){
+        char **name_n_port = split(hosts, &arr_count, colon);
+        sock_no = communicate(name_n_port[0], name_n_port[1]);
+    }
+    else{
+        sock_no = communicate(hosts, default_port);
+    }
+    return sock_no;
+}
+
+
 /*
 Execute actionsets
 int execute(char* type){
@@ -279,13 +295,11 @@ int execute(char* type){
     FILE* events = fopen(FILE_NAME, "w"); //errors
     if(FILE_NAME==NULL) {
         perror("Error opening file");}
-
     if (client < 0) {
         fprintf(FILE_NAME, "Client creation failed\n");
         printf("ERROR: Client creation failed\n");
         return 1;
     }
-
     if (bind(client, (struct sockaddr*) &my_addr1, sizeof(struct sockaddr_in)) == 0)
         printf("Binded Correctly\n");
     else
@@ -308,9 +322,7 @@ int execute(char* type){
     
     
     fclose(FILE_NAME);
-
     printf("Connected to %s\n", type);
-
     return EXIT_SUCCESS;
 }
 */
@@ -322,6 +334,7 @@ int main(int argc, char **argv){
     int fd_max;
     char tmp_str[128];
     int sock_no;
+    char *space = " ";
     if(argc == 3){
         if(strcmp(argv[1], "-v") == 0){
             verbose = 1;
@@ -335,13 +348,13 @@ int main(int argc, char **argv){
         populate(lines[i]);
     }
     strcpy(tmp_str,lines[0]);
-    char *port = strdup(split(tmp_str, &port_count)[0]);
+    char *port = strdup(split(tmp_str, &port_count, space)[0]);
     memset(tmp_str, '\0', sizeof(tmp_str));
     strcpy(tmp_str,lines[1]);
-    char **hosts = split(tmp_str, &fd_count);
+    char **hosts = split(tmp_str, &fd_count, space);
     fd_max = fd_count;
     for(int i = 0; i < fd_max; i++){
-        sock_no = communicate(hosts[i], port);
+        sock_no = sock_assign(hosts[i], port);
         if(sock_no != -1){
             fd_list = realloc(fd_list, sizeof(int) * (i+1));
             fd_list[i] = sock_no;
@@ -360,6 +373,7 @@ int main(int argc, char **argv){
     }
     return EXIT_SUCCESS;
 }
+
 
 //reads and stores the contents of a Rakefile, 
 //executes actions (locally),
