@@ -67,50 +67,109 @@ void hostname(){
 
 // Function to return output of client communication
 int return_output(int client,char *msg){
+
+    // If client wants a quote
     if(strcmp(msg, "REQUEST QUOTE") == 0){
+        printf("RECEIVED REQUEST FOR QUOTE\n");
+
+        // Generate random number
         char c[3];
-        srand(getpid());
+        srand(getpid());        
         int random_number = rand() % 100; 
         sprintf(c, "%d", random_number);
         char cost[strlen(c)];
         sprintf(cost, "%d", random_number);
+
+        // Send generated number
+        printf("SENDING QUOTE: %s\n", cost);
         if(send(client, cost, sizeof(char) * strlen(cost), 0) == -1){
             fprintf(stderr, "send quote:%s\n", strerror(errno));
         }
-        exit(EXIT_SUCCESS);
+        return EXIT_SUCCESS;
     }
-    else if(strstr(msg, "requires") != NULL){
-        strtok(msg, ",");
-        FILE * fp;
-        fp = fopen(strtok(NULL, ","), "w");
-        fputs(strtok(NULL, ","), fp);
-        
-        if(send(client, "RECEIVED FILE.", sizeof(char) * strlen("RECEIVED FILE."), 0) == -1){
+
+    // Else if client is sending a file
+    else if(strcmp(msg, "SENDING FILE") == 0){
+        printf("PREPARING TO RECEIVE FILE.\n");
+
+        // Tell client to send filename
+        printf("REQUESTING FILENAME.\n");
+        if(send(client, "SEND FILENAME.", sizeof(char) * strlen("SEND FILENAME."), 0) == -1){
             fprintf(stderr, "send requires:%s\n", strerror(errno));
         }
+        
+        // Get sent filename
+        char filename[TXTLEN];
+        int bytes;
+        FILE * fp;
+        if((bytes = recv(client, filename, TXTLEN-1, 0)) == -1){
+            fprintf(stderr, "recv:%s\n", strerror(errno));
+            return EXIT_FAILURE;
+        }
+        filename[bytes] = '\0';
+
+        // Open file for writing
+        fp = fopen(filename, "w");
+
+        // Tell client we received filename
+        printf("RECEIVED FILENAME: %s, EXPECTING DATA.\n", filename);
+        if(send(client, "RECEIVED FILENAME.", sizeof(char) * strlen("RECEIVED FILENAME."), 0) == -1){
+            fprintf(stderr, "send requires:%s\n", strerror(errno));
+        }
+
+        // Client will then send file data, read the data
+        int datalen = 128;
+        char data[datalen];
+        while(1){
+            if((bytes = recv(client, data, datalen-1, 0)) == -1){
+                fprintf(stderr, "recv:%s\n", strerror(errno));
+                return EXIT_FAILURE;
+            }
+            data[bytes] = '\0';
+
+            if(strcmp(data, "END OF FILE") == 0){
+                break;
+            }
+
+            // Write data into file
+            fputs(data, fp);
+        }
+        while(strcmp(data, "END OF FILE") != 0);
+        // Tell client we received data
+        printf("RECEIVED FILE DATA: %s.\n", data);
+        if(send(client, "RECEIVED FILE DATA.", sizeof(char) * strlen("RECEIVED FILE DATA."), 0) == -1){
+            fprintf(stderr, "send requires:%s\n", strerror(errno));
+        }
+
         fclose(fp);
-        exit(EXIT_SUCCESS);
+        return EXIT_SUCCESS;
     }
 
     // If its not requesting quote or sending file, its giving a command, send output of that command
     else{
+        printf("RECEIVED COMMAND: %s\n", msg);
         FILE * fp;
         char * line = NULL;
         size_t len = 0;
         ssize_t read;
 
+        // Execute command
+        printf("EXECUTING COMMAND: %s\n", msg);
         fp = popen(msg, "r");
         if (fp == NULL)
             exit(EXIT_FAILURE);
 
+        // Send output of command to client
+        printf("SENDING OUTPUT OF COMMAND:\n");
         while ((read = getline(&line, &len, fp)) != -1) {
+            printf("%s", line);
             send(client, line, sizeof(char) * strlen(line), 0);
         }
 
         pclose(fp);
         if (line)
             free(line);
-        exit(EXIT_SUCCESS);
+        return EXIT_SUCCESS;
     }
 }
 
@@ -174,7 +233,6 @@ int main(int argc, char *argv[]){
         peer_address_size = sizeof(peer_addr);
         printf("Waiting on client\n");
         clientfd = accept(sockfd, (struct sockaddr *) &peer_addr, &peer_address_size);
-        //clientfd = accept(sockfd,0,0);
         if(clientfd == -1){
             fprintf(stderr, "accept:%s\n", strerror(errno));
             return EXIT_FAILURE;
@@ -192,12 +250,13 @@ int main(int argc, char *argv[]){
                 return EXIT_FAILURE;
             }
             msg[bytes] = '\0';
-            printf("%s\n", msg);
+            printf("\nCLIENT SENT: %s\n\n", msg);
             //instead of sending the msg that was sent to server, send output of command
             if(/*send(clientfd, msg, bytes, 0)*/ return_output(clientfd, msg) == -1){
                 fprintf(stderr, "send:%s\n", strerror(errno));
             }
             writeToFile(FILENAME, msg);
+            printf("CLOSING CONNECTION ON SOCKET %i.\n\n", clientfd);
             close(clientfd);
             exit(EXIT_SUCCESS);
         }
