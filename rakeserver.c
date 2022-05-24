@@ -214,6 +214,7 @@ int return_output(int client,char *msg){
                     int bytes;
                     if(files[i - behind] != filez[i]){
                         */
+        // If its a command that produces a file, send that file to client
         if(strstr(msg, "-o") != NULL || strstr(msg, "-c") != NULL || strstr(msg, ">") != NULL){
             int bytes;
             int datalen = 128;
@@ -242,9 +243,6 @@ int return_output(int client,char *msg){
                 fprintf(stderr, "starting file transfer:%s\n", strerror(errno));
             }
 
-            // If client confirms they want file, send filename first
-            
-            printf("CLIENT REQUESTING FILENAME.\n");
             if((bytes = recv(client, data, datalen-1, 0)) == -1){
                 fprintf(stderr, "recv:%s\n", strerror(errno));
                 return EXIT_FAILURE;
@@ -252,6 +250,8 @@ int return_output(int client,char *msg){
             data[bytes] = '\0';
             
             if(strcmp(data, "SEND FILENAME.") == 0){
+                // If client confirms they want file, send filename first
+                printf("CLIENT REQUESTING FILENAME.\n");
                 printf("SENDING FILENAME.\n");
                 if(send(client, file, sizeof(char) * strlen(file), 0) == -1){
                 fprintf(stderr, "sending filename:%s\n", strerror(errno));
