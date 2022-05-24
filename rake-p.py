@@ -197,21 +197,30 @@ def send_file(hostname, port, file):
     vprint("OPENING CONNECTION.")
     events.write("OPENING CONNECTION.\n")
     sock.connect((hostname, port))
-
+    output = ""
     # Open and read file
     f = open(file, "r")
     d = f.read()
     filename = file[file.rfind('/') + 1:]
-    sock.send(f"requires,{filename},{d}".encode())
+    sock.send("SENDING FILE".encode())
 
+    output = sock.recv(1024).decode("utf-8")
+    print(output)
+    if output == "SEND FILENAME.":
+        sock.send(filename.encode())
+    output = sock.recv(1024).decode("utf-8")
+
+    if output == "RECEIVED FILENAME.":
+        vprint("FILENAME RECEIVED.")
+        events.write("FILENAME RECEIVED.\n")
+        sock.send(d.encode())
     sock.shutdown(socket.SHUT_WR)
-    while 1:
-        data = sock.recv(1024)
+    
+    output = sock.recv(1024).decode("utf-8")
+    if output == "RECEIVED FIEL DATA.":
+        vprint("FILE DATA RECEIVED.")
+        events.write("FILE DATA RECEIVED.\n")
         
-        if len(data) == 0:
-            break
-        vprint("FILE RECEIVED.")
-        events.write("FILE RECEIVED.\n")
     f.close()
     vprint("CLOSING CONNECTION.\n")
     events.write("CLOSING CONNECTION.\n\n")
