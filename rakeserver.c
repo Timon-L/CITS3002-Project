@@ -120,17 +120,21 @@ int return_output(int client,char *msg){
         // Client will then send file data, read the data
         int datalen = 128;
         char data[datalen];
-        do{
+        while(1){
             if((bytes = recv(client, data, datalen-1, 0)) == -1){
                 fprintf(stderr, "recv:%s\n", strerror(errno));
                 return EXIT_FAILURE;
             }
             data[bytes] = '\0';
 
+            if(strcmp(data, "END OF FILE") == 0){
+                break;
+            }
+
             // Write data into file
             fputs(data, fp);
         }
-        while(strcmp(data, "") != 0);
+        while(strcmp(data, "END OF FILE") != 0);
         // Tell client we received data
         printf("RECEIVED FILE DATA: %s.\n", data);
         if(send(client, "RECEIVED FILE DATA.", sizeof(char) * strlen("RECEIVED FILE DATA."), 0) == -1){

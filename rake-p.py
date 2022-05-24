@@ -257,12 +257,14 @@ def send_file(hostname, port, file):
         vprint("SENDING FILE DATA.")
         events.write("SENDING FILE DATA.\n")
         
+        # Send lines from file to server
         while 1:
             d = f.readline()
             if not d:
                 break
             sock.send(d.encode())
-        sock.send("".encode())
+        # No more lines to send, tell server to stop listening for data
+        sock.send("END OF FILE".encode())
     sock.shutdown(socket.SHUT_WR)
     
     # If server tells us it received the data, close file and connection
