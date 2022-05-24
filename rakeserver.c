@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <time.h>
+#include <dirent.h>
 
 #define MYPORT argv[1]
 #define TXTLEN 128
@@ -95,7 +96,7 @@ int return_output(int client,char *msg){
         // Tell client to send filename
         printf("REQUESTING FILENAME.\n");
         if(send(client, "SEND FILENAME.", sizeof(char) * strlen("SEND FILENAME."), 0) == -1){
-            fprintf(stderr, "send requires:%s\n", strerror(errno));
+            fprintf(stderr, "request filename:%s\n", strerror(errno));
         }
         
         // Get sent filename
@@ -114,7 +115,7 @@ int return_output(int client,char *msg){
         // Tell client we received filename
         printf("RECEIVED FILENAME: %s, EXPECTING DATA.\n", filename);
         if(send(client, "RECEIVED FILENAME.", sizeof(char) * strlen("RECEIVED FILENAME."), 0) == -1){
-            fprintf(stderr, "send requires:%s\n", strerror(errno));
+            fprintf(stderr, "filename confirmation:%s\n", strerror(errno));
         }
 
         // Client will then send file data, read the data
@@ -134,19 +135,43 @@ int return_output(int client,char *msg){
             // Write data into file
             fputs(data, fp);
         }
-        while(strcmp(data, "END OF FILE") != 0);
+
         // Tell client we received data
-        printf("RECEIVED FILE DATA: %s.\n", data);
+        printf("RECEIVED FILE DATA.\n");
         if(send(client, "RECEIVED FILE DATA.", sizeof(char) * strlen("RECEIVED FILE DATA."), 0) == -1){
-            fprintf(stderr, "send requires:%s\n", strerror(errno));
+            fprintf(stderr, "file data confirmation:%s\n", strerror(errno));
         }
 
         fclose(fp);
         return EXIT_SUCCESS;
     }
 
-    // If its not requesting quote or sending file, its giving a command, send output of that command
+    // If its not requesting quote or sending file, its giving a command, send file or output of command
     else{
+        // Check what files are in the directory to see difference after command execution
+        /*int numfiles = 0;
+        int max_num_files = 1000;
+        char **files = malloc(max_num_files * sizeof(*files));
+
+        FILE * dir;
+        char * file = NULL;
+        ssize_t r;
+        size_t len = 0;
+
+        dir = popen("ls", "r");
+        if (dir == NULL)
+            exit(EXIT_FAILURE);
+        
+        while ((r = getline(&file, &len, dir)) != -1) {
+            // Add files to array
+            files[numfiles] = malloc(sizeof(char) * strlen(file));
+            strcpy(files[numfiles], file);
+            printf("XXXXXXXXXXXXXXX\n%s\nXXXXXXXXXXXXXXX\n",files[numfiles]);
+            numfiles += 1;
+        }
+        printf("\n\n\n\n\n%d", numfiles);
+        pclose(dir);*/
+
         printf("RECEIVED COMMAND: %s\n", msg);
         FILE * fp;
         char * line = NULL;
@@ -156,19 +181,134 @@ int return_output(int client,char *msg){
         // Execute command
         printf("EXECUTING COMMAND: %s\n", msg);
         fp = popen(msg, "r");
+        
         if (fp == NULL)
             exit(EXIT_FAILURE);
 
-        // Send output of command to client
-        printf("SENDING OUTPUT OF COMMAND:\n");
-        while ((read = getline(&line, &len, fp)) != -1) {
-            printf("%s", line);
-            send(client, line, sizeof(char) * strlen(line), 0);
-        }
+        // Check files in directory to see if any files were added after executing command
+        /*int numfilez = 0;
+        char **filez = malloc(max_num_files * sizeof(*filez));
 
-        pclose(fp);
-        if (line)
-            free(line);
+        FILE * dirr;
+        file = NULL;
+        len = 0;
+        dirr = popen("ls", "r");
+        if (dirr == NULL)
+            exit(EXIT_FAILURE);
+        
+        while ((r = getline(&file, &len, dirr)) != -1) {
+            // Add files to array
+            filez[numfilez] = malloc(sizeof(char) * strlen(file));
+            strcpy(filez[numfilez], file);
+            printf("CCCCCCCCCCCCCC\n%s\nCCCCCCCCCCCCCC\n",filez[numfilez]);
+            numfilez += 1;
+        }
+        pclose(dirr);
+        printf("\n\n\n\n\n%d", numfilez);*/
+        // If there is a difference in the number of files, send the files to the client
+        /*if(numfiles != numfilez ){
+            int newfiles = numfilez - numfiles;
+            while(newfiles > 0){
+                int behind = 0;
+                for(int i = 0; i < numfilez; i++){
+                    int bytes;
+                    if(files[i - behind] != filez[i]){
+                        */
+        // If its a command that produces a file, send that file to client
+        if(strstr(msg, "-o") != NULL || strstr(msg, "-c") != NULL || strstr(msg, ">") != NULL){
+            int bytes;
+            int datalen = 128;
+            char data[datalen];
+            char * file;
+            if(strstr(msg, "-o") != NULL){
+                strtok(msg, " ");
+                strtok(NULL, " ");
+                file = strtok(NULL, " ");
+            }
+            else if (strstr(msg, "-c") != NULL){
+                strtok(msg, " ");
+                strtok(NULL, " ");
+                file = strtok(NULL, " ");
+                file[strlen(file)-1] = 'o';
+            }
+            else{
+                strtok(msg, ">");
+                char *tok = strtok(NULL, ">");
+                strtok(tok, " ");
+                file = strtok(NULL, " ");
+            }
+            // Tell client you will be sending a file
+            printf("STARTING FILE TRANSFER\n");
+            if(send(client, "SENDING FILE.", sizeof(char) * strlen("SENDING FILE."), 0) == -1){
+                fprintf(stderr, "starting file transfer:%s\n", strerror(errno));
+            }
+
+            if((bytes = recv(client, data, datalen-1, 0)) == -1){
+                fprintf(stderr, "recv:%s\n", strerror(errno));
+                return EXIT_FAILURE;
+            }
+            data[bytes] = '\0';
+            
+            if(strcmp(data, "SEND FILENAME.") == 0){
+                // If client confirms they want file, send filename first
+                printf("CLIENT REQUESTING FILENAME.\n");
+                printf("SENDING FILENAME.\n");
+                if(send(client, file, sizeof(char) * strlen(file), 0) == -1){
+                fprintf(stderr, "sending filename:%s\n", strerror(errno));
+                }
+            }
+
+            
+            if((bytes = recv(client, data, datalen-1, 0)) == -1){
+                fprintf(stderr, "recv:%s\n", strerror(errno));
+                return EXIT_FAILURE;
+            }
+            data[bytes] = '\0';
+
+            
+            if(strcmp(data,"RECEIVED FILENAME.") == 0){
+                // If client received filename, send file data
+                printf("CLIENT RECEIVED FILE NAME.\n");
+                FILE * f;
+                f = fopen(file, "r");
+                printf("SENDING FILE DATA:\n");
+
+                while(fgets(line, sizeof(line), f)){
+                    printf("%s", line);
+                    if(send(client, line, sizeof(char) * strlen(line), 0) == -1){
+                        fprintf(stderr, "sending file data:%s\n", strerror(errno));
+                    }
+                }
+                if(send(client, "END OF FILE", sizeof(char) * strlen("END OF FILE"), 0) == -1){
+                    fprintf(stderr, "sending file data:%s\n", strerror(errno));
+                }
+            }
+        }
+                        /*
+                        newfiles -= 1;
+                        behind += 1;
+                    }
+                }
+                
+            }
+            return EXIT_SUCCESS;
+        }*/
+            
+        // Else send the output of command
+        else{
+
+        // Send output of command to client
+            printf("SENDING OUTPUT OF COMMAND:\n");
+            while ((read = getline(&line, &len, fp)) != -1) {
+                printf("%s", line);
+                send(client, line, sizeof(char) * strlen(line), 0);
+            }
+
+            pclose(fp);
+            if (line){
+                free(line);
+            }
+        }
         return EXIT_SUCCESS;
     }
 }

@@ -1,2 +1,3 @@
 #include <stdio.h>
-char * hello = "hello world";
+
+char * hello = "hello world\n";
