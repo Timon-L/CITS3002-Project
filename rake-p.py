@@ -293,7 +293,7 @@ def cheapest_quote(hostnames):
     except Exception as e:
         vprint("ERROR GETTING QUOTES: " + '\n' + str(e) + '\n\n')
         events.write("ERROR GETTING QUOTES: " + '\n' + str(e) + '\n\n\n')
-    
+     
     # Return host with lowest quote
     cheapest = hostnames[quote.index(min(quote))]
     vprint("ACCEPTING: " + cheapest + '\n')
