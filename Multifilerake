@@ -15,5 +15,5 @@ actionset2:
 
 actionset3:
 	echo starting actionset3
-	remote-./hell
-		requires hell
+	remote ./hello
+		requires hello

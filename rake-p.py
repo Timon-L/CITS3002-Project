@@ -196,20 +196,54 @@ def send_command(hostname, port, command):
     sock.connect((hostname, port))
     # Send server command
     sock.sendall(command)
-    sock.shutdown(socket.SHUT_WR)
-    output = ""
-    # Get output of server (server sends output of command)
+    #sock.shutdown(socket.SHUT_WR)
+    
     vprint("RECEIVING DATA:")
-    events.write("RECEIVED DATA:\n")
-    while 1:
-        data = sock.recv(1024)
+    events.write("RECEIVING DATA:\n")
 
-        if len(data) == 0:
-            break
-        data = data.decode("utf-8")
-        output += data
-        vprint(data)
-        events.write(data + "\n")
+    # If server is sending file, ask for filename
+    output = sock.recv(1024).decode("utf-8")
+    if(output == "SENDING FILE."):
+        vprint("COMMAND RESULTED IN FILE CREATED.")
+        events.write("COMMAND RESULTED IN FILE CREATED.\n")
+
+        vprint("REQUESTING FILENAME.")
+        events.write("REQUESTING FILENAME.\n")
+        sock.send("SEND FILENAME.".encode())
+
+        # Create file of filename received
+        output = sock.recv(1024).decode("utf-8")
+        print(output)
+        f = open(output, "w")
+        vprint("RECEIVED FILENAME.")
+        events.write("RECEIVED FILENAME.\n")
+        # Tell server we received filename
+        sock.send("RECEIVED FILENAME.".encode())
+
+        # Server will then send data for file
+        vprint("RECEIVING FILE DATA:")
+        events.write("RECEIVING FILE DATA.\n")
+        while 1:
+            data = sock.recv(1024).decode("utf-8")
+            
+            # If server sends "END OF FILE" there is no more data to be sent
+            if data == "END OF FILE":
+                break
+            f.write(data)
+            vprint(data)
+            events.write(data + "\n")
+
+    # Else get output of server (server sends output of command)
+    else:
+        while 1:
+            data = sock.recv(1024)
+
+            if len(data) == 0:
+                break
+            data = data.decode("utf-8")
+            output += data
+            vprint(data)
+            events.write(data + "\n")
     
     # Close connection
     vprint("CLOSING CONNECTION.\n")
@@ -305,7 +339,7 @@ def cheapest_quote(hostnames):
         events.write("ERROR GETTING QUOTES: " + '\n' + str(e) + '\n\n\n')
      
     # Return host with lowest quote
-    cheapest = hostnames[quote.index(min(quote))]
+    cheapest = hostnames[quotes.index(min(quotes))]
     vprint("ACCEPTING: " + cheapest + '\n')
     events.write("ACCEPTING: " + cheapest + '\n\n')
     return cheapest
