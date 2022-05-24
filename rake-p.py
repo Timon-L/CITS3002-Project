@@ -231,9 +231,8 @@ def send_file(hostname, port, file):
     sock.connect((hostname, port))
     output = ""
 
-    # Open and read file
+    # Open file
     f = open(file, "r")
-    d = f.read()
 
     # If filename had path through folders, just get the file's name without folder path
     # eg. for /project/code/helloworld.c, just get helloworld.c
@@ -254,12 +253,21 @@ def send_file(hostname, port, file):
     if output == "RECEIVED FILENAME.":
         vprint("FILENAME RECEIVED.")
         events.write("FILENAME RECEIVED.\n")
-        sock.send(d.encode())
+
+        vprint("SENDING FILE DATA.")
+        events.write("SENDING FILE DATA.\n")
+        
+        while 1:
+            d = f.readline()
+            if not d:
+                break
+            sock.send(d.encode())
+        sock.send("".encode())
     sock.shutdown(socket.SHUT_WR)
     
     # If server tells us it received the data, close file and connection
     output = sock.recv(1024).decode("utf-8")
-    if output == "RECEIVED FIEL DATA.":
+    if output == "RECEIVED FILE DATA.":
         vprint("FILE DATA RECEIVED.")
         events.write("FILE DATA RECEIVED.\n")
         
