@@ -7,13 +7,10 @@ actionset1:
 	echo starting actionset1
 	remote-cc -c helloworld.c
 		requires test/helloworld.c test/helloworld.h
+	remote-cc -c main.c
+		requires test/helloworld.c test/helloworld.h test/main.c
 
 actionset2:
 	echo starting actionset2
-	remote-cc -o hello helloworld.o
-		requires helloworld.o
-
-actionset3:
-	echo starting actionset3
-	remote ./hello
-		requires hello
+	remote-cc -o wassup helloworld.o main.o
+		requires helloworld.o main.o
