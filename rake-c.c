@@ -2,23 +2,29 @@
 #define FILE_NAME "event.txt"
 
 struct local{
-    char *file;
-    char *args[R_NO];
-    int arg_count;
+    char cmd[TXT_LEN];
+    char requires[TXT_LEN];
 };
 
 struct remote{
-    char *path;
-    char *args[R_NO];
-    int arg_count;
+    char cmd[TXT_LEN];
+    char requires[TXT_LEN];
 };
 
+struct action{
+    struct local locals[CMD_NO];
+    struct remote remotes[CMD_NO];
+    int loc_count;
+    int rem_count;
+    int req_state;
+};
+
+struct action actions[100];
+int act_count = 0;
 char *lines[R_NO];
-struct local *locals = NULL;
-struct remote *remotes = NULL;
+//struct local *locals = NULL;
+//struct remote *remotes = NULL;
 int rows = -1;
-int loc_count = 0;
-int rem_count = 0;
 int verbose = 0;
 
 /*
@@ -74,50 +80,36 @@ char **split(const char *str, int *w_count){
 /*
 Sort command into remote or local.
 */
-char *action_check(char **line, int w_count){
+void action_check(const char *line, char **words, int w_count){
     char *arg1;
     //Checking for single tab character or double tab.
-    if(line[0][1] != '\t'){
-        arg1 = malloc(strlen(line[0]));
-        strcpy(arg1, &line[0][1]);
+    if(line[1] != '\t'){
+        arg1 = malloc(strlen(words[0]));
+        strcpy(arg1, &words[0][1]);
+        if(strstr(arg1, "remote") != NULL){
+            strcpy(actions[act_count].remotes[actions[act_count].rem_count].cmd,&line[1]);
+            //printf("%s\n", actions[act_count].remotes[actions[act_count].rem_count].cmd);
+            actions[act_count].rem_count++;
+            //printf("rem count size:%i\n", actions[act_count].rem_count);
+            actions[act_count].req_state = 1;
+        }
+        else{
+            strcpy(actions[act_count].locals[actions[act_count].loc_count].cmd,&line[1]);
+            //printf("%s\n", actions[act_count].locals[actions[act_count].loc_count].cmd);
+            actions[act_count].loc_count++;
+            //printf("loc count size:%i\n", actions[act_count].loc_count);
+            actions[act_count].req_state = 0;
+        }
     }
     else{
-        arg1 = malloc(strlen(line[0]));
-        strcpy(arg1, &line[0][2]);
-    }
-    //Remote commands.
-    if(strcmp(arg1, "remote-cc") == 0 || strcmp(arg1, "requires") == 0){
-        struct remote *r = malloc(sizeof(*r) + sizeof(r->args[0]));
-        r->path = strdup(arg1);
-        r->args[0] = strdup(arg1);
-        for(int i = 1; i < w_count; i++){
-            r->args[i] = malloc(strlen(line[i]) + 1);
-            r->args[i] = line[i];
+        if(actions[act_count].req_state == 0){
+            strcpy(actions[act_count].locals[actions[act_count].loc_count].requires,&line[2]);
+            //printf("%s\n", actions[act_count].locals[actions[act_count].loc_count].requires);
         }
-        r->args[w_count] = malloc(sizeof(0));
-        r->args[w_count] = NULL;
-        r->arg_count = w_count;
-        remotes = realloc(remotes, (rem_count+1)*sizeof(remotes[0]));
-        remotes[rem_count] = *r;
-        ++rem_count;
-        return "remote";
-    }
-    //Local commands.
-    else{
-        struct local *l = malloc(sizeof(*l) + sizeof(l->args[0]));
-        l->file = strdup(arg1);
-        l->args[0] = strdup(arg1);
-        for(int i = 1; i < w_count; i++){
-            l->args[i] = malloc(strlen(line[i] + 1));
-            l->args[i] = line[i];
+        else{
+            strcpy(actions[act_count].remotes[actions[act_count].rem_count].requires,&line[2]);
+            //printf("%s\n", actions[act_count].remotes[actions[act_count].rem_count].requires);
         }
-        l->args[w_count] = malloc(sizeof(0));
-        l->args[w_count] = NULL;
-        l->arg_count = w_count;
-        locals = realloc(locals, (loc_count+1)*sizeof(locals[0]));
-        locals[loc_count] = *l;
-        ++loc_count;
-        return "local";
     }
 }
 /*
@@ -127,7 +119,8 @@ void populate(const char *line){
     if(line[0] == '\t'){
         int w_count;
         char **word_arr = split(line, &w_count);
-        char *type = action_check(word_arr, w_count);
+        action_check(line, word_arr, w_count);
+        /*
         if(verbose){
             if(strcmp(type,"local") == 0){
                 printf("Local no.:%i\n", loc_count);
@@ -146,6 +139,10 @@ void populate(const char *line){
                 }
             }
         }
+        */
+    }
+    else{
+        act_count++;   
     }
 }
 
@@ -237,6 +234,8 @@ int read_block(int *fd_list, int fd_count){
 
 int write_block(int *fd_list, int fd_count){
     int fd_active = 0;
+    char *hosts[2] = {"localhost", "remote"};
+    int h_index = 0;
     while(fd_active != fd_count){
         fd_set write_fds;
         FD_ZERO(&write_fds);
@@ -263,13 +262,13 @@ int write_block(int *fd_list, int fd_count){
 
         for(int j = 0; j <= fd_count; j++){
             if(fd_list[j] >= 0 && FD_ISSET(fd_list[j], &write_fds)){
-                if(send(fd_list[j], "Client to server success", TXT_LEN-1, 0) == -1){
+                if(send(fd_list[j], hosts[h_index], TXT_LEN-1, 0) == -1){
                     fprintf(stderr, "send:%s\n", strerror(errno));
                     close(fd_list[j]);
                     fprintf(stdout, "%2i: closed\n", fd_list[j]);
-                    fd_list[j] = -1;
-                    fd_active--;     
+                    fd_list[j] = -1;   
                 }
+                h_index++;
                 fd_active++;
             }
         }
@@ -353,7 +352,7 @@ int main(int argc, char **argv){
     else if(argc > 1){
         readfile(argv[1]);
     }
-    for(int i = 2; i < rows; i++){
+    for(int i = 2; i <= rows; i++){
         populate(lines[i]);
     }
     strcpy(tmp_str,lines[0]);
