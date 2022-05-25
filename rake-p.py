@@ -319,6 +319,7 @@ Get quote from all servers and return hostname of cheapest server
 def cheapest_quote(hostnames):
     global PORT
     quotes = []
+    minimum_quote = 1;
     try:
         # For each host
         for host in hostnames:
@@ -332,6 +333,13 @@ def cheapest_quote(hostnames):
             quote = send_command(host, PORT, "REQUEST QUOTE".encode())
             vprint("RECEIVED " + host + ":" + str(PORT) + " QUOTE: " + quote + '\n')
             events.write("RECEIVED " + host + ":" + str(PORT) + " QUOTE: " + quote + '\n\n')
+            
+            # If quote is the minimum quote we can get, accept the host, no need to quote other servers
+            if quote == minimum_quote:
+                vprint("ACCEPTING: " + host + ":" + str(PORT) + '\n')
+                events.write("ACCEPTING: " + host + ":" + str(PORT) + '\n\n')
+                return host + ":" + str(PORT)
+                
             # Add quote to list of quotes
             quotes.append(quote)
     except Exception as e:
