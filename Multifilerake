@@ -12,5 +12,5 @@ actionset1:
 
 actionset2:
 	echo starting actionset2
-	remote-cc -o wassup helloworld.o main.o
+	remote-cc -o howdy helloworld.o main.o
 		requires helloworld.o main.o
