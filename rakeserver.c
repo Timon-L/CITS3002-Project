@@ -1,24 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <time.h>
-#include <dirent.h>
-
-#define MYPORT argv[1]
-#define TXTLEN 128
-#define LISTEN_BACKLOG 20
-#define FILENAME "filename"
-#define TEMPLATE "tmp/mt-XXXXXX"
+#include "rakeserver.h"
 
 int writeToFile(char *filename, char *msg){
     FILE *fp = fopen(filename,"w");
@@ -34,36 +14,6 @@ int writeToFile(char *filename, char *msg){
     }
     fclose(fp);
     return EXIT_SUCCESS;
-}
-
-int make_tmp(){
-    char *tmp;
-    tmp = malloc(sizeof(TEMPLATE));
-    strcpy(tmp, TEMPLATE);
-    if(mkdtemp(tmp) == NULL){
-       fprintf(stderr, "Error:%s\n", strerror(errno));
-       return EXIT_FAILURE; 
-    }
-    printf("%s", tmp);
-    return EXIT_SUCCESS;
-}
-
-void hostname(){
-    struct hostent *host_detail;
-    char hostname[TXTLEN];
-    char *IP;
-    hostname[TXTLEN-1] = '\0';
-    if(gethostname(hostname, TXTLEN) == -1){
-        fprintf(stderr, "gethostname:%s\n", strerror(errno));
-    }
-    if((host_detail = gethostbyname(hostname)) == NULL){
-        fprintf(stderr, "gethostbyname:%s\n", strerror(errno));
-    }
-    if((IP = inet_ntoa(*((struct in_addr*)host_detail->h_addr_list[0]))) == NULL){
-        perror("inet_ntoa\n");
-    }
-    printf("My name is:%s\n", hostname);
-    printf("My IP is:%s\n", IP);
 }
 
 // Function to return output of client communication
@@ -251,7 +201,12 @@ int return_output(int client,char *msg){
     }
 }
 
+/*  argv[1] input = server port.
+*   Listen on socket for client connection.
+*   First receive message from client then send output base on request.
+*/  
 int main(int argc, char *argv[]){
+    char *port;
     if(argc != 2){
         fprintf(stderr, "must type a port after './rakeserver'\n");
         exit(EXIT_FAILURE);
@@ -260,6 +215,7 @@ int main(int argc, char *argv[]){
     struct addrinfo *servinfo, *copy, my_addr;
     struct sockaddr_storage peer_addr;
     socklen_t peer_address_size;
+    port = argv[1];
     char msg[TXTLEN];
     
     int bytes;
@@ -270,7 +226,7 @@ int main(int argc, char *argv[]){
     my_addr.ai_socktype = SOCK_STREAM;
     my_addr.ai_flags = AI_PASSIVE;
 
-    if(getaddrinfo(NULL, MYPORT, &my_addr, &servinfo) == -1){
+    if(getaddrinfo(NULL, port, &my_addr, &servinfo) == -1){
         fprintf(stderr,"getaddrinfo:%s\n", strerror(errno));
     }
 
@@ -306,8 +262,7 @@ int main(int argc, char *argv[]){
         return EXIT_FAILURE;
     }
     do{
-        hostname();
-        printf("Listening on port:%s, socket:%i\n", MYPORT, sockfd);
+        printf("Listening on port:%s, socket:%i\n", port, sockfd);
         peer_address_size = sizeof(peer_addr);
         printf("Waiting on client\n");
         clientfd = accept(sockfd, (struct sockaddr *) &peer_addr, &peer_address_size);
