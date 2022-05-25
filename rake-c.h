@@ -13,4 +13,6 @@
 #include <sys/select.h>
 
 #define R_NO 100
-#define TXT_LEN 1024
+#define TXT_LEN 128
+#define CMD_NO 100
+#define FILE_NAME "event.txt"

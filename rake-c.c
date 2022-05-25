@@ -1,3 +1,7 @@
+//  CITS3002 Project 2022
+//  Name(s):             Ching Chun Liu
+//  Student number(s):   22660829
+
 #include "rake-c.h"
 
 struct local{

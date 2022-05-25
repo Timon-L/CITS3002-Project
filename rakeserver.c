@@ -1,3 +1,7 @@
+//  CITS3002 Project 2022
+//  Name(s):             Joe Lao , Ching Chun Liu
+//  Student number(s):   22982055 , 22660829
+
 #include "rakeserver.h"
 
 int writeToFile(char *filename, char *msg){
