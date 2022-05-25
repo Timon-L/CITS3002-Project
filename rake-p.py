@@ -170,7 +170,7 @@ def execute(actionsets):
 
 
 """
-Create file to capture events (outputs and errors)
+Create file to capture events (outputs and errors). Reference: https://stackoverflow.com/questions/13852700/create-file-but-if-name-exists-add-number
 """
 def create_event_file(path):
     filename, extension = os.path.splitext(path)
