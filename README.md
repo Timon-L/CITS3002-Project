@@ -1,5 +1,5 @@
 # CITS3002-Project
-CITS3002 networking project
+CITS3002 networking project, building 2 client and 1 server. Clients sends commands to server and server executes and reply to clients.
 
 Develop client and server program in standard C99 (or C11, or C17), and Python v3.6 (or later).<br />
 -Create rakeserver in either C or Python. <br />
